@@ -157,6 +157,10 @@ try:
     
     sales_df, orders_df = fetch_data(start_date, end_date)
     
+    # FIX: Convert Code columns to string to ensure matching data types
+    sales_df['Code'] = sales_df['Code'].astype(str)
+    orders_df['Code'] = orders_df['Code'].astype(str)
+    
     # Merge and calculate difference
     merged_df = orders_df.merge(
         sales_df,
@@ -169,7 +173,9 @@ try:
     
     # Apply code filter
     if filter_option != "All Codes" and selected_codes:
-        merged_df = merged_df[merged_df['Code'].isin(selected_codes)]
+        # Convert selected_codes to string as well for comparison
+        selected_codes_str = [str(code) for code in selected_codes]
+        merged_df = merged_df[merged_df['Code'].isin(selected_codes_str)]
     
     merged_df = merged_df.sort_values(['Sales_Date', 'Code'], ascending=[False, True])
     
@@ -252,6 +258,5 @@ try:
 
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
-
     st.info("Please ensure the database file exists and contains the required tables (Orders and Sales).")
 
