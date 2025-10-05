@@ -6,19 +6,19 @@ import os
 
 # Connect to DuckDB
 #conn = duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
-def get_connection():
-    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
-    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
-    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
-    
-    # Option 2: Relative to the script's directory (if DB is in a subfolder)
-    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
-    
-    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
-    if not os.path.exists(db_path):
-        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
-    
-    return duckdb.connect(db_path)
+import duckdb
+import os
+
+# Old (absolute, environment-specific):
+# db_path = "/workspaces/Dispatch_Deshboard/disptach.duckdb"
+
+# New (relative, portable):
+db_path = os.path.join(os.path.dirname(__file__), "..", "disptach.duckdb")  # Adjust based on your file structure
+# Or simply: db_path = "disptach.duckdb" if it's in the repo root
+
+conn = duckdb.connect(db_path)
+# If the file doesn't exist yet, DuckDB will create it on first write:
+# con.execute("CREATE TABLE IF NOT EXISTS your_table (...)")
 
 # Load Sales with Sales_Date
 sales = pd.read_sql("SELECT Code, Route, Qty, Sales_Date FROM Sales", conn)
@@ -204,4 +204,5 @@ if isinstance(start_date, list):  # If user selects a range
 mask = (df['Sales_Date'].dt.date >= start_date) & (df['Sales_Date'].dt.date <= end_date)
 
 df = df.loc[mask]
+
 
