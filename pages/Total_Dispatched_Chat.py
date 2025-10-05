@@ -13,7 +13,7 @@ st.title("📊 Sales Oscilloscope Dashboard - Animated Chart")
 # Connect to DuckDB
 @st.cache_resource
 def get_connection():
-    return duckdb.connect(r"C:\Users\dispatch\OneDrive - Atyab Food Industries\Samad\Python\Dispatch\disptach.duckdb")
+    return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
 
 con = get_connection()
 
@@ -327,4 +327,5 @@ except Exception as e:
     st.info("Please ensure the database file exists at the specified path and contains the Sales table.")
 
 finally:
+
     pass
