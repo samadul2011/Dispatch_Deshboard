@@ -12,7 +12,7 @@ st.title("📊 Sales Dashboard")
 # Connect to DuckDB
 @st.cache_resource
 def get_connection():
-    return duckdb.connect(r"C:\Users\dispatch\OneDrive - Atyab Food Industries\Samad\Python\Dispatch\disptach.duckdb")
+    return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
 
 con = get_connection()
 
@@ -189,4 +189,5 @@ except Exception as e:
 
 # Footer
 st.sidebar.markdown("---")
+
 st.sidebar.info(f"Data range: {min_date} to {max_date}")
