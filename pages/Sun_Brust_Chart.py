@@ -4,7 +4,7 @@ import duckdb
 import plotly.express as px
 
 # Connect to DuckDB
-conn = duckdb.connect(r"C:\Users\dispatch\OneDrive - Atyab Food Industries\Samad\Python\Dispatch\disptach.duckdb")
+conn = duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
 
 # Load Sales with Sales_Date
 sales = pd.read_sql("SELECT Code, Route, Qty, Sales_Date FROM Sales", conn)
@@ -175,4 +175,5 @@ if isinstance(start_date, list):  # If user selects a range
     start_date, end_date = start_date[0], start_date[1]
 
 mask = (df['Sales_Date'].dt.date >= start_date) & (df['Sales_Date'].dt.date <= end_date)
+
 df = df.loc[mask]
