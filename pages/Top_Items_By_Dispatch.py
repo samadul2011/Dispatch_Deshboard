@@ -3,6 +3,7 @@ import duckdb
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
+import os
 
 # Page configuration
 st.set_page_config(page_title="Sales Dashboard", layout="wide")
@@ -11,10 +12,21 @@ st.title("📊 Sales Dashboard")
 
 # Connect to DuckDB
 @st.cache_resource
-def get_connection():
-    return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
+#def get_connection():
+    #return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
 
-con = get_connection()
+
+
+# Old (absolute, environment-specific):
+# db_path = "/workspaces/Dispatch_Deshboard/disptach.duckdb"
+
+# New (relative, portable):
+db_path = os.path.join(os.path.dirname(__file__), "..", "disptach.duckdb")  # Adjust based on your file structure
+# Or simply: db_path = "disptach.duckdb" if it's in the repo root
+
+con = duckdb.connect(db_path)
+# If the file doesn't exist yet, DuckDB will create it on first write:
+# con.execute("CREATE TABLE IF NOT EXISTS your_table (...)")
 
 # Get date range from data
 @st.cache_data
@@ -191,3 +203,4 @@ except Exception as e:
 st.sidebar.markdown("---")
 
 st.sidebar.info(f"Data range: {min_date} to {max_date}")
+
