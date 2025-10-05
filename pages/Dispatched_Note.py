@@ -1,6 +1,8 @@
 import streamlit as st
 import duckdb
 import pandas as pd
+import os
+
 
 # Page configuration
 st.color = "red"
@@ -176,4 +178,5 @@ except Exception as e:
 st.markdown("---")
 
 st.markdown("*Sales Pivot Dashboard - Built with Streamlit & DuckDB*")
+
 
