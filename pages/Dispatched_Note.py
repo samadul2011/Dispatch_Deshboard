@@ -11,7 +11,7 @@ st.subheader("Developed by Samadul Hoque")
 # Database connection
 @st.cache_resource
 def get_connection():
-    return duckdb.connect(r"C:\Users\dispatch\OneDrive - Atyab Food Industries\Samad\Python\Dispatch\disptach.duckdb")
+    return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
 
 # Load and prepare data
 @st.cache_data
@@ -163,4 +163,5 @@ except Exception as e:
 
 # Footer
 st.markdown("---")
+
 st.markdown("*Sales Pivot Dashboard - Built with Streamlit & DuckDB*")
