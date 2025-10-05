@@ -3,6 +3,7 @@ import duckdb
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import os
 
 # Page configuration
 st.set_page_config(page_title="Sales Oscilloscope", layout="wide")
@@ -12,9 +13,21 @@ st.title("📊 Sales Oscilloscope Dashboard - Animated Chart")
 
 # Connect to DuckDB
 @st.cache_resource
+#def get_connection():
+    #return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
 def get_connection():
-    return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
-
+    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
+    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
+    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
+    
+    # Option 2: Relative to the script's directory (if DB is in a subfolder)
+    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
+    
+    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
+    if not os.path.exists(db_path):
+        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
+    
+    return duckdb.connect(db_path)
 con = get_connection()
 
 # Get date range from database
@@ -329,3 +342,4 @@ except Exception as e:
 finally:
 
     pass
+
