@@ -11,7 +11,18 @@ st.subheader("Developed by Samadul Hoque")
 # Database connection
 @st.cache_resource
 def get_connection():
-    return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
+    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
+    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
+    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
+    
+    # Option 2: Relative to the script's directory (if DB is in a subfolder)
+    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
+    
+    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
+    if not os.path.exists(db_path):
+        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
+    
+    return duckdb.connect(db_path)
 
 # Load and prepare data
 @st.cache_data
@@ -165,3 +176,4 @@ except Exception as e:
 st.markdown("---")
 
 st.markdown("*Sales Pivot Dashboard - Built with Streamlit & DuckDB*")
+
