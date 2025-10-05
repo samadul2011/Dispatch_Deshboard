@@ -12,19 +12,20 @@ st.title("📊 Sales Dashboard")
 
 # Connect to DuckDB
 @st.cache_resource
-#def get_connection():
-    #return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
-
-
-
-# Old (absolute, environment-specific):
-# db_path = "/workspaces/Dispatch_Deshboard/disptach.duckdb"
-
-# New (relative, portable):
-db_path = os.path.join(os.path.dirname(__file__), "..", "disptach.duckdb")  # Adjust based on your file structure
-# Or simply: db_path = "disptach.duckdb" if it's in the repo root
-
-con = duckdb.connect(db_path)
+def get_connection():
+    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
+    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
+    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
+    
+    # Option 2: Relative to the script's directory (if DB is in a subfolder)
+    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
+    
+    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
+    if not os.path.exists(db_path):
+        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
+    
+    return duckdb.connect(db_path)
+con = get_connection()
 # If the file doesn't exist yet, DuckDB will create it on first write:
 # con.execute("CREATE TABLE IF NOT EXISTS your_table (...)")
 
@@ -203,4 +204,5 @@ except Exception as e:
 st.sidebar.markdown("---")
 
 st.sidebar.info(f"Data range: {min_date} to {max_date}")
+
 
