@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import duckdb
+import os
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
