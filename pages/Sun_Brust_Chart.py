@@ -1,192 +1,277 @@
+import os
 import streamlit as st
 import pandas as pd
 import duckdb
 import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, date
 
-# Connect to DuckDB
+# Page configuration
+st.set_page_config(
+    page_title="Sales Dashboard", 
+    page_icon="📊", 
+    layout="wide"
+)
 
-import os
-
-# Old (absolute, environment-specific):
-# db_path = "/workspaces/Dispatch_Deshboard/disptach.duckdb"
-
-# New (relative, portable):
-db_path = os.path.join(os.path.dirname(__file__), "..", "disptach.duckdb")  # Adjust based on your file structure
+# Cache the data loading function
+@st.cache_data
+def load_data():
+    """Load and merge sales data with supervisor information"""
+    try:
+        # Connect to DuckDB
+        db_path = os.path.join(os.path.dirname(__file__), "..", "disptach.duckdb")  # Adjust based on your file structure
 # Or simply: db_path = "disptach.duckdb" if it's in the repo root
 
-conn = duckdb.connect(db_path)
-# If the file doesn't exist yet, DuckDB will create it on first write:
-# con.execute("CREATE TABLE IF NOT EXISTS your_table (...)")
+        conn = duckdb.connect(db_path)
+        
+        # Load Sales and Supervisor mapping
+        sales = pd.read_sql("SELECT Code, Route, Sales_Date, Qty FROM Sales", conn)
+        supervisors = pd.read_sql("SELECT Route, Supervisor FROM Supervisors", conn)
+        
+        # Merge Supervisor info
+        df = sales.merge(supervisors, on="Route", how="left")
+        
+        # Convert Sales_Date to datetime
+        df['Sales_Date'] = pd.to_datetime(df['Sales_Date'])
+        
+        # Convert Qty to numeric, handling any non-numeric values
+        df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce')
+        
+        # Fill NaN values with 0
+        df['Qty'] = df['Qty'].fillna(0)
+        
+        conn.close()
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return None
 
-# Load Sales with Sales_Date
-sales = pd.read_sql("SELECT Code, Route, Qty, Sales_Date FROM Sales", conn)
-
-# Load Product mapping
-Products = pd.read_sql("SELECT Code, Category3 FROM Products", conn)
-
-# Join (like SQL LEFT JOIN)
-df = sales.merge(Products, on="Code", how="left")
-
-# Convert Qty to numeric (in case it's stored as text)
-df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce')
-
-# Convert Sales_Date to datetime if it's not already
-df['Sales_Date'] = pd.to_datetime(df['Sales_Date'])
-
-# Close the database connection
-conn.close()
-
-# Aggregate data by Category3 and Code
-sunburst_data = df.groupby(['Category3', 'Code']).agg({
-    'Qty': 'sum'
-}).reset_index()
-
-# Remove rows with missing Category3
-sunburst_data = sunburst_data.dropna(subset=['Category3'])
-
-# Get top 20 products for each Category3
-def get_top_products_per_category(data, n=20):
-    top_products = []
-    for category in data['Category3'].unique():
-        category_data = data[data['Category3'] == category]
-        top_category_products = category_data.nlargest(n, 'Qty')
-        top_products.append(top_category_products)
+# Main app
+def main():
+    st.title("📊 Sales Dashboard")
+    st.markdown("---")
     
-    return pd.concat(top_products, ignore_index=True)
-
-# Get top 20 products per category
-top_products_data = get_top_products_per_category(sunburst_data, n=20)
-
-# Create hierarchical structure for sunburst
-# We need to create the proper structure: Root -> Category3 -> Code
-sunburst_final = []
-
-# Add Category3 level (parent nodes)
-for category in top_products_data['Category3'].unique():
-    category_total = top_products_data[top_products_data['Category3'] == category]['Qty'].sum()
-    sunburst_final.append({
-        'ids': category,
-        'labels': category,
-        'parents': '',
-        'values': category_total
-    })
-
-# Add Code level (child nodes)
-for _, row in top_products_data.iterrows():
-    sunburst_final.append({
-        'ids': f"{row['Category3']}_{row['Code']}",
-        'labels': row['Code'],
-        'parents': row['Category3'],
-        'values': row['Qty']
-    })
-
-# Convert to DataFrame
-sunburst_df = pd.DataFrame(sunburst_final)
-
-# Create the sunburst chart
-fig = px.sunburst(
-    sunburst_df,
-    ids='ids',
-    names='labels',
-    parents='parents',
-    values='values',
-    title='Sales Distribution: Category3 → Top 20 Products by Quantity',
-    color='values',
-    color_continuous_scale='Viridis'
-)
-
-# Customize the layout
-fig.update_layout(
-    title_font_size=16,
-    title_x=0.5,
-    width=800,
-    height=600,
-    font_size=12
-)
-
-# Update traces for better visibility
-fig.update_traces(
-    textinfo="label+percent parent",
-    hovertemplate='<b>%{label}</b><br>Quantity: %{value}<br>Percentage: %{percentParent}<extra></extra>'
-)
-
-# Display in Streamlit
-st.title("Sales Data Sunburst Chart")
-st.write("This chart shows the sales distribution by Category3 and the top 20 products within each category.")
-
-# Show some statistics
-st.subheader("Data Summary")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Total Categories", len(top_products_data['Category3'].unique()))
-
-with col2:
-    st.metric("Total Products", len(top_products_data))
-
-with col3:
-    st.metric("Total Quantity", f"{top_products_data['Qty'].sum():,.0f}")
-
-# Display the chart
-st.plotly_chart(fig, use_container_width=True)
-
-# Optional: Show the top products table
-if st.checkbox("Show Top Products Data"):
-    st.subheader("Top 20 Products per Category")
+    # Load data
+    df = load_data()
     
-    # Create a more readable display
-    display_data = top_products_data.copy()
-    display_data = display_data.sort_values(['Category3', 'Qty'], ascending=[True, False])
-    display_data['Qty'] = display_data['Qty'].apply(lambda x: f"{x:,.0f}")
+    if df is None:
+        st.error("Unable to load data. Please check your database connection.")
+        return
     
-    st.dataframe(
-        display_data,
-        column_config={
-            "Category3": "Category",
-            "Code": "Product Code",
-            "Qty": "Total Quantity"
-        },
-        hide_index=True
+    # Sidebar filters
+    st.sidebar.header("🔧 Filters")
+    
+    # Code filter/search
+    st.sidebar.subheader("Product Code Filter")
+    code_filter_type = st.sidebar.radio(
+        "Filter Type:",
+        ["All Codes", "Select Specific Codes", "Search Codes"]
     )
-
-# Optional: Category-wise breakdown
-if st.checkbox("Show Category Breakdown"):
-    st.subheader("Sales by Category")
     
-    category_summary = top_products_data.groupby('Category3')['Qty'].agg(['sum', 'count']).reset_index()
-    category_summary.columns = ['Category', 'Total Quantity', 'Number of Products']
-    category_summary = category_summary.sort_values('Total Quantity', ascending=False)
-    category_summary['Total Quantity'] = category_summary['Total Quantity'].apply(lambda x: f"{x:,.0f}")
+    selected_codes = []
+    if code_filter_type == "Select Specific Codes":
+        all_codes = sorted(df['Code'].unique().tolist())
+        selected_codes = st.sidebar.multiselect(
+            "Select Codes:", 
+            all_codes,
+            default=[]
+        )
+    elif code_filter_type == "Search Codes":
+        search_term = st.sidebar.text_input(
+            "Search Code (contains):", 
+            placeholder="Enter code to search..."
+        )
+        if search_term:
+            matching_codes = df[df['Code'].str.contains(search_term, case=False, na=False)]['Code'].unique().tolist()
+            if matching_codes:
+                st.sidebar.write(f"Found {len(matching_codes)} matching codes:")
+                selected_codes = st.sidebar.multiselect(
+                    "Select from matching codes:",
+                    matching_codes,
+                    default=matching_codes[:10]  # Auto-select first 10
+                )
+            else:
+                st.sidebar.warning("No codes found matching your search.")
     
-    st.dataframe(category_summary, hide_index=True)
+    # Supervisor dropdown
+    supervisors = ['All'] + sorted(df['Supervisor'].dropna().unique().tolist())
+    selected_supervisor = st.sidebar.selectbox("Select Supervisor:", supervisors)
+    
+    # Date range selector
+    min_date = df['Sales_Date'].min().date()
+    max_date = df['Sales_Date'].max().date()
+    
+    selected_date_range = st.sidebar.date_input(
+        "Select Date Range:",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date
+    )
+    
+    # Apply filters
+    filtered_df = df.copy()
+    
+    # Filter by code
+    if code_filter_type != "All Codes" and selected_codes:
+        filtered_df = filtered_df[filtered_df['Code'].isin(selected_codes)]
+    elif code_filter_type == "Search Codes" and not selected_codes and 'search_term' in locals() and search_term:
+        # If search was performed but no codes were selected, show empty result
+        filtered_df = filtered_df[filtered_df['Code'].isin([])]
+    
+    # Filter by supervisor
+    if selected_supervisor != 'All':
+        filtered_df = filtered_df[filtered_df['Supervisor'] == selected_supervisor]
+    
+    # Filter by date range
+    if len(selected_date_range) == 2:
+        start_date, end_date = selected_date_range
+        filtered_df = filtered_df[
+            (filtered_df['Sales_Date'].dt.date >= start_date) & 
+            (filtered_df['Sales_Date'].dt.date <= end_date)
+        ]
+    
+    # Create aggregated data for table (Code as rows, Qty as sum)
+    table_data = filtered_df.groupby(['Code', 'Supervisor']).agg({
+        'Qty': 'sum',
+        'Sales_Date': ['min', 'max']
+    }).reset_index()
+    
+    # Flatten column names
+    table_data.columns = ['Code', 'Supervisor', 'Total_Qty', 'First_Sale_Date', 'Last_Sale_Date']
+    table_data = table_data.round(2)
+    
+    # Display metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        total_qty = float(filtered_df['Qty'].sum())  # Ensure it's a float
+        st.metric("Total Quantity", f"{total_qty:,.0f}")
+    
+    with col2:
+        unique_codes = filtered_df['Code'].nunique()
+        st.metric("Unique Codes", f"{unique_codes:,}")
+    
+    with col3:
+        unique_supervisors = filtered_df['Supervisor'].nunique()
+        st.metric("Supervisors", f"{unique_supervisors:,}")
+    
+    with col4:
+        if code_filter_type != "All Codes":
+            filtered_codes = len(selected_codes) if selected_codes else 0
+            st.metric("Filtered Codes", f"{filtered_codes:,}")
+        else:
+            date_range_days = (filtered_df['Sales_Date'].max() - filtered_df['Sales_Date'].min()).days
+            st.metric("Date Range (Days)", f"{date_range_days:,}")
+    
+    # Create two columns for layout
+    col_table, col_chart = st.columns([1, 1])
+    
+    with col_table:
+        st.subheader("📋 Sales Summary Table")
+        
+        # Display the table
+        if not table_data.empty:
+            st.dataframe(
+                table_data,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Code": "Product Code",
+                    "Supervisor": "Supervisor",
+                    "Total_Qty": st.column_config.NumberColumn(
+                        "Total Quantity",
+                        format="%.0f"
+                    ),
+                    "First_Sale_Date": st.column_config.DateColumn("First Sale"),
+                    "Last_Sale_Date": st.column_config.DateColumn("Last Sale")
+                }
+            )
+            
+            # Download button for table data
+            csv = table_data.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Table as CSV",
+                data=csv,
+                file_name=f"sales_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("No data available for the selected filters.")
+    
+    with col_chart:
+        st.subheader("📈 Quantity by Code")
+        
+        if not table_data.empty:
+            # Create bar chart
+            fig = px.bar(
+                table_data.head(15),  # Show top 15 codes
+                x='Code',
+                y='Total_Qty',
+                color='Supervisor',
+                title="Top 15 Codes by Total Quantity",
+                labels={'Total_Qty': 'Total Quantity', 'Code': 'Product Code'},
+                height=400
+            )
+            
+            fig.update_layout(
+                xaxis_tickangle=-45,
+                showlegend=True,
+                margin=dict(b=100)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No data available for chart.")
+    
+    # Additional charts section
+    st.markdown("---")
+    st.subheader("📊 Additional Analytics")
+    
+    chart_col1, chart_col2 = st.columns(2)
+    
+    with chart_col1:
+        # Time series chart
+        if not filtered_df.empty:
+            daily_sales = filtered_df.groupby(['Sales_Date'])['Qty'].sum().reset_index()
+            
+            fig_time = px.line(
+                daily_sales,
+                x='Sales_Date',
+                y='Qty',
+                title='Daily Sales Trend',
+                labels={'Qty': 'Total Quantity', 'Sales_Date': 'Date'}
+            )
+            
+            fig_time.update_layout(height=300)
+            st.plotly_chart(fig_time, use_container_width=True)
+    
+    with chart_col2:
+        # Supervisor performance pie chart
+        if not filtered_df.empty:
+            supervisor_totals = filtered_df.groupby('Supervisor')['Qty'].sum().reset_index()
+            
+            fig_pie = px.pie(
+                supervisor_totals,
+                values='Qty',
+                names='Supervisor',
+                title='Sales by Supervisor'
+            )
+            
+            fig_pie.update_layout(height=300)
+            st.plotly_chart(fig_pie, use_container_width=True)
+    
+    # Raw data section (collapsible)
+    with st.expander("🔍 View Raw Data"):
+        st.dataframe(filtered_df, use_container_width=True, hide_index=True)
+        
+        # Download button for raw data
+        csv_raw = filtered_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download Raw Data as CSV",
+            data=csv_raw,
+            file_name=f"raw_sales_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv"
+        )
 
-print("Sunburst chart created successfully!")
-print(f"Total categories: {len(top_products_data['Category3'].unique())}")
-print(f"Total products displayed: {len(top_products_data)}")
-print(f"Data shape: {top_products_data.shape}")
-
-df['Sales_Date'] = pd.to_datetime(df['Sales_Date'])
-
-# --- 🔹 Streamlit Date Filter ---
-st.sidebar.header("Filter Options")
-
-# Get min & max date from your data
-min_date = df['Sales_Date'].min().date()
-max_date = df['Sales_Date'].max().date()
-
-# Date range selector
-start_date, end_date = st.sidebar.date_input(
-    "Select Date Range",
-    [min_date, max_date],
-    min_value=min_date,
-    max_value=max_date
-)
-
-# Apply date filter
-if isinstance(start_date, list):  # If user selects a range
-    start_date, end_date = start_date[0], start_date[1]
-
-mask = (df['Sales_Date'].dt.date >= start_date) & (df['Sales_Date'].dt.date <= end_date)
-
-df = df.loc[mask]
-
+if __name__ == "__main__":
+    main()
