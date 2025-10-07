@@ -2,6 +2,7 @@ import streamlit as st
 import duckdb
 import pandas as pd
 from datetime import date
+import urllib.request
 import os
 
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -9,75 +10,69 @@ with col3:
     st.image("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/AtyabLogo.png", width=200)
 
 with col2:
-    st.markdown("<h1 style='color: red;'>Dispatched Details</h1>", unsafe_allow_html=True)
+    st.color = "red"
+    st.markdown(f"<h1 style='color: {st.color};'>Dispatched Details</h1>", unsafe_allow_html=True)
     st.subheader("Developed by :red[Samadul Hoque]")
 
 st.title("🔍 Sales Data Viewer")
 
-# ---- DATABASE PATH ----
-db_filename = "dispatch.duckdb"
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", db_filename)  # Repo root
+# ---- DATABASE PATH ---- 
+# GitHub raw content URL for the database file
+GITHUB_DB_URL = "https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/disptach.duckdb"
+LOCAL_DB_PATH = "disptach.duckdb"
 
-if not os.path.exists(DB_PATH):
-    st.warning(f"DB file not found at {DB_PATH}. Creating a new one...")
+# ---- DOWNLOAD DATABASE FROM GITHUB ----
+@st.cache_resource
+def download_database():
+    """Download database from GitHub if not already present."""
+    if not os.path.exists(LOCAL_DB_PATH):
+        with st.spinner("Downloading database from GitHub..."):
+            try:
+                urllib.request.urlretrieve(GITHUB_DB_URL, LOCAL_DB_PATH)
+                st.success("Database downloaded successfully!")
+            except Exception as e:
+                st.error(f"Error downloading database: {e}")
+                return None
+    return LOCAL_DB_PATH
+
+# Download the database
+DB_PATH = download_database()
 
 # ---- CACHED CONNECTION ----
 @st.cache_resource
 def get_connection():
     """Keep a single DuckDB connection alive for the Streamlit session."""
-    return duckdb.connect(DB_PATH)
-
-# ---- LOAD DATA FROM CSVS (Uncomment once sales.csv & products.csv are in repo root) ----
-def load_data_from_csvs(con):
-    """Import data from CSVs if base tables are missing."""
-    try:
-        # Adjust column names if your CSVs differ
-        con.execute("CREATE OR REPLACE TABLE Sales AS SELECT * FROM read_csv_auto('sales.csv')")
-        con.execute("CREATE OR REPLACE TABLE Products AS SELECT * FROM read_csv_auto('products.csv')")
-        st.success("Data loaded from CSVs!")
-        return True
-    except Exception as e:
-        st.error(f"Failed to load CSVs: {e}. Commit sales.csv and products.csv to repo root.")
-        return False
+    if DB_PATH:
+        con = duckdb.connect(DB_PATH)
+        return con
+    return None
 
 # ---- CREATE TABLE (if not exists) ----
 def ensure_join_table(con):
-    """Create or replace ProductsWithCode if base tables exist."""
-    try:
-        # First, ensure base tables exist (load from CSVs if not)
-        con.execute("SELECT 1 FROM Sales LIMIT 1")  # Test Sales
-        con.execute("SELECT 1 FROM Products LIMIT 1")  # Test Products
-    except:
-        if not load_data_from_csvs(con):  # Uncomment the call above to enable CSV loading
-            st.error("❌ Base tables 'Sales' and 'Products' missing. Commit dispatch.duckdb or add CSVs.")
-            return False
-
-    try:
-        con.execute("""
-            CREATE OR REPLACE TABLE ProductsWithCode AS
-            SELECT 
-                s.Code,
-                s.Qty,
-                s.Sales_Date,
-                s.Route,
-                p.Description AS Description
-            FROM Sales s
-            INNER JOIN Products p
-                ON s.Code = p.Code;
-        """)
-        return True
-    except Exception as e:
-        st.error(f"DB error during join: {e}")
-        return False
+    """Create or replace ProductsWithCode if it doesn't exist."""
+    con.execute("""
+        CREATE OR REPLACE TABLE ProductsWithCode AS
+        SELECT 
+            s.Code,
+            s.Qty,
+            s.Sales_Date,
+            s.Route,
+            p.Description AS Description
+        FROM Sales s
+        INNER JOIN Products p
+            ON s.Code = p.Code;
+    """)
 
 # ---- LOAD FILTERED DATA ----
 @st.cache_data
 def load_data(start_date=None, end_date=None, code_filter=None):
     """Load filtered data safely."""
     con = get_connection()
-    if not ensure_join_table(con):
-        return pd.DataFrame()  # Empty on error
-
+    if not con:
+        return pd.DataFrame()
+    
+    ensure_join_table(con)
+    
     query = """
         SELECT 
             Code,
@@ -89,17 +84,17 @@ def load_data(start_date=None, end_date=None, code_filter=None):
         WHERE 1=1
     """
     params = []
-
+    
     if start_date and end_date:
         query += " AND CAST(Sales_Date AS DATE) BETWEEN ? AND ?"
         params += [str(start_date), str(end_date)]
-
+    
     if code_filter:
         query += " AND LOWER(Code) LIKE LOWER(?)"
         params.append(f"%{code_filter}%")
-
+    
     query += " ORDER BY CAST(Sales_Date AS DATE) DESC"
-
+    
     return con.execute(query, params).fetchdf()
 
 # ---- SIDEBAR FILTERS ----
@@ -107,7 +102,7 @@ st.sidebar.header("Filter Options")
 
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    start_date = st.date_input("Start Date", value=date(2024, 1, 1))  # Realistic default
+    start_date = st.date_input("Start Date", value=date(2025, 1, 1))
 with col2:
     end_date = st.date_input("End Date", value=date.today())
 
@@ -123,7 +118,7 @@ st.write(f"Records found: {len(df)}")
 if not df.empty:
     st.dataframe(df, use_container_width=True)
 else:
-    st.info("No records found. Check filters and DB setup.")
+    st.info("No records found for the selected filters.")
 
 # ---- DOWNLOAD OPTION ----
 if not df.empty:
@@ -135,12 +130,12 @@ if not df.empty:
         mime="text/csv",
     )
 
-# ---- DEFAULT PREVIEW ----
+# ---- DEFAULT PREVIEW (optional) ----
 st.divider()
 st.subheader("🔸 Latest 10 Records")
 try:
     con = get_connection()
-    if ensure_join_table(con):
+    if con:
         df_default = con.execute("""
             SELECT Code, Qty, Sales_Date, Route, Description 
             FROM ProductsWithCode 
@@ -148,7 +143,5 @@ try:
             LIMIT 10
         """).fetchdf()
         st.dataframe(df_default, use_container_width=True)
-    else:
-        st.info("Preview unavailable—set up DB first.")
 except Exception as e:
-    st.error(f"Preview error: {e}")
+    st.error(f"Error loading preview: {e}")
