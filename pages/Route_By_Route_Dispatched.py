@@ -36,7 +36,7 @@ def get_connection():
     return duckdb.connect(db_path)
 
 # Load and prepare data
-#@st.cache_data
+
 DB_PATH =et_connection()
 # ---- CACHED CONNECTION ----
 @st.cache_resource
