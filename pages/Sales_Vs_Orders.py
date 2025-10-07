@@ -211,7 +211,7 @@ try:
     
     with col3:
         total_sales = display_df['Sales Qty'].sum()
-         st.metric("Total Sales Qty", f":red[{total_sales:,}]")
+         st.metric("Total Sales Qty", f"{total_sales:,}")
     
     with col4:
         total_diff = display_df['Difference'].sum()
@@ -267,6 +267,7 @@ try:
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
     st.info("Please ensure the database file exists and contains the required tables (Orders and Sales).")
+
 
 
 
