@@ -15,7 +15,7 @@ with col3:
 st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
 st.subheader("Developed by :red[Samadul Hoque]")
 with col1:
-    st.subheader("📊 :red[Orders vs Sales]")
+    st.subheader(":red[Orders vs Sales]  📊 ")
 with col2:
     st.subheader(" :green[Difference Analysis]")
     #color="Blue"
@@ -267,6 +267,7 @@ try:
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
     st.info("Please ensure the database file exists and contains the required tables (Orders and Sales).")
+
 
 
 
