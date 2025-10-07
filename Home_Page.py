@@ -8,7 +8,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for better styling with proper colors
 st.markdown("""
 <style>
     .main-header {
@@ -31,6 +31,15 @@ st.markdown("""
         border-left: 5px solid #1f77b4;
         margin-bottom: 2rem;
     }
+    .welcome-card h3 {
+        color: #1f77b4;
+        margin-top: 0;
+    }
+    .welcome-card p {
+        color: #262730;
+        font-size: 1.1rem;
+        line-height: 1.6;
+    }
     .feature-card {
         background-color: white;
         padding: 1.5rem;
@@ -39,12 +48,22 @@ st.markdown("""
         border: 1px solid #e0e0e0;
         height: 100%;
     }
+    .feature-card h4 {
+        color: #1f77b4;
+        margin-top: 0;
+    }
+    .feature-card p, .feature-card li {
+        color: #262730;
+    }
     .developer-info {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 1.5rem;
         border-radius: 10px;
         text-align: center;
+    }
+    .developer-info h3, .developer-info p {
+        color: white !important;
     }
     .metric-card {
         background-color: white;
@@ -53,6 +72,25 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         text-align: center;
         border-top: 4px solid #1f77b4;
+    }
+    .metric-card h3 {
+        color: #1f77b4;
+        font-size: 2.5rem;
+        margin: 0.5rem 0;
+    }
+    .metric-card p {
+        color: #262730;
+        margin: 0;
+    }
+    .footer-section {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+    }
+    .footer-section p {
+        color: #262730;
+        margin: 0.5rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -167,16 +205,28 @@ st.markdown("---")
 footer_col1, footer_col2, footer_col3 = st.columns(3)
 
 with footer_col1:
-    st.markdown("**🔒 Data Security**")
-    st.markdown("Your data is processed securely and never stored on external servers.")
+    st.markdown("""
+    <div class="footer-section">
+        <p><strong>🔒 Data Security</strong></p>
+        <p>Your data is processed securely and never stored on external servers.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 with footer_col2:
-    st.markdown("**🔄 Live Updates**")
-    st.markdown("Data refreshes automatically with the latest information.")
+    st.markdown("""
+    <div class="footer-section">
+        <p><strong>🔄 Live Updates</strong></p>
+        <p>Data refreshes automatically with the latest information.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 with footer_col3:
-    st.markdown("**🆘 Need Help?**")
-    st.markdown("Contact the dispatch team for support and feature requests.")
+    st.markdown("""
+    <div class="footer-section">
+        <p><strong>🆘 Need Help?</strong></p>
+        <p>Contact the dispatch team for support and feature requests.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Sidebar Navigation
 st.sidebar.title("🌐 Navigation")
@@ -185,7 +235,7 @@ st.sidebar.markdown("### Select a Dashboard Page")
 # You can add more pages here as your app grows
 page_options = {
     "🏠 Home": "Current page",
-    "📊 Orders vs Sales": "Difference analysis",
+    "📊 Orders vs Sales": "Difference analysis", 
     "📈 Sales Analytics": "Sales performance metrics",
     "📦 Order Management": "Order tracking and management"
 }
