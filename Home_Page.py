@@ -92,17 +92,18 @@ st.markdown("""
         color: #262730;
         margin: 0.5rem 0;
     }
-    .nav-button {
-        width: 100%;
-        text-align: left;
-        margin: 5px 0;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #e0e0e0;
-        background-color: white;
+    .page-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 10px 0;
+        background: white;
+        transition: all 0.3s ease;
     }
-    .nav-button:hover {
-        background-color: #f0f2f6;
+    .page-card:hover {
+        border-color: #1f77b4;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -183,7 +184,7 @@ with guide_col1:
     st.markdown("""
     <div class="metric-card">
         <h3>1</h3>
-        <p><b>Select a Page</b><br>Choose from the sidebar menu to access different analyses</p>
+        <p><b>Use Sidebar</b><br>Click the arrow (↖️) to open navigation</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -191,7 +192,7 @@ with guide_col2:
     st.markdown("""
     <div class="metric-card">
         <h3>2</h3>
-        <p><b>Apply Filters</b><br>Use date ranges and product filters to focus on specific data</p>
+        <p><b>Select Page</b><br>Choose from available pages in sidebar</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -199,11 +200,72 @@ with guide_col3:
     st.markdown("""
     <div class="metric-card">
         <h3>3</h3>
-        <p><b>Analyze & Export</b><br>Review insights and download your analysis</p>
+        <p><b>Start Analyzing</b><br>Use filters and explore your data</p>
     </div>
     """, unsafe_allow_html=True)
 
+# Available Pages Section - CLICKABLE CARDS
+st.subheader("📂 Available Dashboard Pages")
+
+# Page configurations with emojis and descriptions
+pages_info = [
+    {"emoji": "📝", "name": "Dispatched Note", "description": "View and manage dispatch notes", "filename": "Dispatched_Note"},
+    {"emoji": "🛣️", "name": "Route By Route Dispatch", "description": "Route-wise dispatch analysis", "filename": "Route_By_Route_Dispatched"},
+    {"emoji": "📊", "name": "Sales vs Orders", "description": "Compare sales and orders data", "filename": "Sales_Vs_Orders"},
+    {"emoji": "☀️", "name": "Sunburst Chart", "description": "Interactive hierarchical data visualization", "filename": "Sun_Brust"},
+    {"emoji": "👨‍💼", "name": "Supervisor Wise Products", "description": "Product analysis by supervisor", "filename": "Supervisor_Wise_Products"},
+    {"emoji": "🏆", "name": "Top Items By Dispatch", "description": "Top dispatched items ranking", "filename": "Top_Items_By_Dispatch"},
+    {"emoji": "📦", "name": "Top Products By Category", "description": "Category-wise product performance", "filename": "Top_Products_By_Categore"},
+    {"emoji": "📈", "name": "Total Dispatched Chart", "description": "Overall dispatch trends and charts", "filename": "Total_Dispatched_Chat"}
+]
+
+# Create clickable page cards
+cols = st.columns(2)
+for i, page in enumerate(pages_info):
+    with cols[i % 2]:
+        with st.container():
+            st.markdown(f"""
+            <div class="page-card">
+                <h4>{page['emoji']} {page['name']}</h4>
+                <p>{page['description']}</p>
+                <small><strong>File:</strong> {page['filename']}.py</small>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Instructions for navigation
+            st.caption(f"💡 Use the sidebar navigation to access this page")
+
+# Navigation Instructions
+st.markdown("---")
+st.subheader("🎯 How to Navigate")
+
+nav_col1, nav_col2 = st.columns(2)
+
+with nav_col1:
+    st.markdown("""
+    ### Method 1: Sidebar Navigation
+    1. **Look for the navigation arrow** in the top-left corner (↖️)
+    2. **Click the arrow** to expand the sidebar
+    3. **Select your desired page** from the list
+    4. **The page will load automatically**
+    
+    *This is the recommended way to navigate between pages.*
+    """)
+
+with nav_col2:
+    st.markdown("""
+    ### Method 2: Direct URLs
+    You can also access pages directly using URLs:
+    - `/Dispatched_Note`
+    - `/Route_By_Route_Dispatched` 
+    - `/Sales_Vs_Orders`
+    - ...and other page names
+    
+    *Just add the page name after your app's base URL.*
+    """)
+
 # Developer Info Section
+st.markdown("---")
 st.markdown("""
 <div class="developer-info">
     <h3>👨‍💻 Developed by Dispatch Team</h3>
@@ -240,60 +302,17 @@ with footer_col3:
     </div>
     """, unsafe_allow_html=True)
 
-# Sidebar Navigation - SIMPLIFIED AND ROBUST
-st.sidebar.title("🌐 Navigation")
-st.sidebar.markdown("### Select a Dashboard Page")
-
-# Define page configurations
-page_configs = {
-    "🏠 Home": "Home_Page",
-    "📝 Dispatched Note": "Dispatched_Note", 
-    "🛣️ Route By Route Dispatch": "Route_By_Route_Dispatched",
-    "📊 Sales vs Orders": "Sales_Vs_Orders",
-    "☀️ Sunburst Chart": "Sun_Brust",
-    "👨‍💼 Supervisor Wise Products": "Supervisor_Wise_Products",
-    "🏆 Top Items By Dispatch": "Top_Items_By_Dispatch",
-    "📦 Top Products By Category": "Top_Products_By_Categore",
-    "📈 Total Dispatched Chart": "Total_Dispatched_Chat"
-}
-
-page_descriptions = {
-    "🏠 Home": "Dashboard overview and main menu",
-    "📝 Dispatched Note": "View and manage dispatch notes",
-    "🛣️ Route By Route Dispatch": "Route-wise dispatch analysis", 
-    "📊 Sales vs Orders": "Compare sales and orders data",
-    "☀️ Sunburst Chart": "Interactive hierarchical data visualization",
-    "👨‍💼 Supervisor Wise Products": "Product analysis by supervisor",
-    "🏆 Top Items By Dispatch": "Top dispatched items ranking",
-    "📦 Top Products By Category": "Category-wise product performance", 
-    "📈 Total Dispatched Chart": "Overall dispatch trends and charts"
-}
-
-# Initialize session state for current page
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "🏠 Home"
-
-# Simple navigation using radio buttons (always works)
-st.sidebar.markdown("### 📋 Available Pages")
-selected_page = st.sidebar.radio(
-    "Choose a page:",
-    options=list(page_configs.keys()),
-    index=list(page_configs.keys()).index(st.session_state.current_page),
-    key="page_navigation"
-)
-
-# Show page description
-if selected_page in page_descriptions:
-    st.sidebar.info(f"**{selected_page}**\n\n{page_descriptions[selected_page]}")
-
-# Manual navigation instructions
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🚀 How to Navigate")
+# Sidebar - SIMPLIFIED (just informational)
+st.sidebar.title("🎯 Quick Guide")
 st.sidebar.markdown("""
-To navigate between pages:
-1. Select a page from the list above
-2. Use the Streamlit sidebar menu (←) 
-3. Or use the page selector in the main app header
+### Navigation Help
+Use the **Streamlit sidebar** (click the arrow ↗️ in top-left) to switch between pages.
+
+### Available Pages
+All your dashboard pages are available in the main navigation menu.
+
+### Quick Tip
+Bookmark frequently used pages for faster access!
 """)
 
 st.sidebar.markdown("---")
@@ -304,32 +323,3 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
-
-# Main content based on selected page
-st.session_state.current_page = selected_page
-
-# Display current page information
-st.markdown(f"### 📍 Currently Viewing: {selected_page}")
-st.markdown(f"**Description:** {page_descriptions.get(selected_page, 'No description available')}")
-
-if selected_page != "🏠 Home":
-    st.warning(f"🔍 You've selected **{selected_page}**. To view this page, please use the Streamlit sidebar navigation or manually navigate to the corresponding page file.")
-    st.info("💡 **Tip:** Streamlit automatically detects pages in the 'pages' folder. Make sure your page files are located in the correct directory.")
-else:
-    st.success("✅ You are currently on the Home page. This is the main dashboard overview.")
-
-# Additional helpful information
-st.markdown("---")
-st.markdown("### 📁 Your Available Pages")
-st.markdown("The following pages are configured in your dashboard:")
-
-# Display all available pages in a nice format
-cols = st.columns(3)
-for i, (page_name, description) in enumerate(page_descriptions.items()):
-    with cols[i % 3]:
-        st.markdown(f"""
-        <div style='border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin: 5px 0; background-color: #f8f9fa;'>
-            <h4 style='margin: 0 0 10px 0; color: #1f77b4;'>{page_name}</h4>
-            <p style='margin: 0; font-size: 0.9em; color: #666;'>{description}</p>
-        </div>
-        """, unsafe_allow_html=True)
