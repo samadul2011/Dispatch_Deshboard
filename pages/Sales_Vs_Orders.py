@@ -3,9 +3,9 @@ import duckdb
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-import urllib.request  # Added missing import
+import urllib.request
 
-# Page configuration (moved to top, only once)
+# Page configuration
 st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
 
 if st.sidebar.button("🔄 Refresh Data"):
@@ -210,7 +210,7 @@ try:
     # Main content
     st.subheader("📊 Difference Analysis (Sales - Orders)")
     
-    # Summary metrics
+    # Summary metrics with different colors
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -218,24 +218,38 @@ try:
     
     with col2:
         total_orders = display_df['Orders Qty'].sum()
-        st.metric("Total Orders Qty", f"{total_orders:,}")
+        # Using orange color for Orders
+        st.markdown(f"""
+        <div style="text-align: center; padding: 10px; border-radius: 10px; background-color: #f0f2f6;">
+            <div style="font-size: 14px; color: #666;">Total Orders Qty</div>
+            <div style="font-size: 24px; font-weight: bold; color: #FF6B00;">{total_orders:,}</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col3:
         total_sales = display_df['Sales Qty'].sum()
-        st.metric("Total Sales Qty", f"{total_sales:,}")
+        # Using green color for Sales
+        st.markdown(f"""
+        <div style="text-align: center; padding: 10px; border-radius: 10px; background-color: #f0f2f6;">
+            <div style="font-size: 14px; color: #666;">Total Sales Qty</div>
+            <div style="font-size: 24px; font-weight: bold; color: #00AA00;">{total_sales:,}</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col4:
         total_diff = display_df['Difference'].sum()
-        st.metric(
-            "Total Difference", 
-            f"{total_diff:,}",
-            delta=f"{total_diff:,}",
-            delta_color="normal"
-        )
+        # Determine color for difference (red for negative, green for positive)
+        diff_color = "#FF4B4B" if total_diff < 0 else "#00AA00" if total_diff > 0 else "#666666"
+        st.markdown(f"""
+        <div style="text-align: center; padding: 10px; border-radius: 10px; background-color: #f0f2f6;">
+            <div style="font-size: 14px; color: #666;">Total Difference</div>
+            <div style="font-size: 24px; font-weight: bold; color: {diff_color};">{total_diff:,}</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.divider()
     
-    # Display table
+    # Display table with colored numbers
     st.dataframe(
         display_df,
         use_container_width=True,
@@ -260,7 +274,14 @@ try:
     
     with summary_col2:
         fulfillment_rate = (total_sales / total_orders * 100) if total_orders > 0 else 0
-        st.metric("Fulfillment Rate", f"{fulfillment_rate:.1f}%")
+        # Color based on fulfillment rate
+        rate_color = "#FF4B4B" if fulfillment_rate < 80 else "#FF6B00" if fulfillment_rate < 100 else "#00AA00"
+        st.markdown(f"""
+        <div style="text-align: center; padding: 10px; border-radius: 10px; background-color: #f0f2f6;">
+            <div style="font-size: 14px; color: #666;">Fulfillment Rate</div>
+            <div style="font-size: 24px; font-weight: bold; color: {rate_color};">{fulfillment_rate:.1f}%</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with summary_col3:
         st.metric("Date Range (Days)", (end_date - start_date).days + 1)
