@@ -3,33 +3,24 @@ import duckdb
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+import urllib.request  # Added missing import
 
+# Page configuration (moved to top, only once)
+st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
 
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear()  # clears cache
+
 col1, col2, col3 = st.columns([1, 2, 1])
 with col3:
     st.image("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/AtyabLogo.png", width=200)
-    
-# Page configuration
-#st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
-#st.subheader("Developed by :blue[Samadul Hoque]")
-#with col1:
-   # st.subheader(":red[Orders vs Sales]  📊 ")
-#with col2:
-    #st.subheader(" :green[Difference Analysis]")
-    #color="Blue"
-    #st.markdown(f"<h1 style='color: {color};'>📊 Orders vs Sales Difference Analysis</h1>", unsafe_allow_html=True)
-    
 
-# Database connection
-# Page configuration
-st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
-color="Blue"
+# Header
+color = "Blue"
 st.markdown(f"<h1 style='color: {color};'>📊 Orders vs Sales Difference Analysis</h1>", unsafe_allow_html=True)
 st.markdown("Developed by :red[Samad Hoque]. Analyze the difference between Orders and Sales quantities over a selected date range.")
-# Database connection
-@st.cache_resource
+
+# Database configuration
 GITHUB_DB_URL = "https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/disptach.duckdb"
 LOCAL_DB_PATH = "disptach.duckdb"
 
@@ -58,7 +49,6 @@ def get_connection():
         con = duckdb.connect(DB_PATH)
         return con
     return None
-
 
 con = get_connection()
 
@@ -288,18 +278,3 @@ try:
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
     st.info("Please ensure the database file exists and contains the required tables (Orders and Sales).")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
