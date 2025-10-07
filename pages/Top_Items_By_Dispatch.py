@@ -25,6 +25,7 @@ def get_connection():
         print(f"Warning: DB file not found at {db_path}. Creating a new one...")
     
     return duckdb.connect(db_path)
+
 con = get_connection()
 # If the file doesn't exist yet, DuckDB will create it on first write:
 # con.execute("CREATE TABLE IF NOT EXISTS your_table (...)")
@@ -106,10 +107,13 @@ try:
     col3.metric("Date Range", f"{date_range_days} days")
     col4.metric("Avg Daily Qty", f"{avg_daily_qty:,.0f}")
     
-    # Top 20 Codes Chart
+    # Top 20 Codes Chart - FIXED
     st.subheader("📊 Top 20 Products by Quantity")
     
     top_20 = df.groupby('Code')['Qty'].sum().sort_values(ascending=False).head(20).reset_index()
+    
+    # Convert Code to string to ensure it's treated as categorical
+    top_20['Code'] = top_20['Code'].astype(str)
     
     fig = px.bar(
         top_20,
@@ -118,12 +122,21 @@ try:
         title='Top 20 Products by Total Quantity',
         labels={'Qty': 'Total Quantity', 'Code': 'Product Code'},
         color='Qty',
-        color_continuous_scale='Blues'
+        color_continuous_scale='Blues',
+        text='Qty'  # Show values on bars
     )
+    fig.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
     fig.update_layout(
         xaxis_tickangle=-45,
         height=500,
-        showlegend=False
+        showlegend=False,
+        xaxis=dict(
+            type='category',  # Force categorical x-axis
+            tickmode='linear'  # Show all ticks
+        ),
+        yaxis=dict(
+            title='Total Quantity'
+        )
     )
     st.plotly_chart(fig, use_container_width=True)
     
@@ -202,7 +215,6 @@ except Exception as e:
 
 # Footer
 st.sidebar.markdown("---")
-
 st.sidebar.info(f"Data range: {min_date} to {max_date}")
 
 # Sidebar Navigation - WITH ACTUAL PAGE SWITCHING
@@ -284,4 +296,3 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
-
