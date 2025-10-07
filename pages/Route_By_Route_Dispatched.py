@@ -9,41 +9,25 @@ with col3:
     st.image("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/AtyabLogo.png", width=200)
 
 with col2:
-    st.color = "red"
-    st.markdown(f"<h1 style='color: {st.color};'>Dispatched Details</h1>", unsafe_allow_html=True)
-    #st.set_page_config(page_title="Dispatched Note", layout="wide")
+    st.markdown("<h1 style='color: red;'>Dispatched Details</h1>", unsafe_allow_html=True)
     st.subheader("Developed by :red[Samadul Hoque]")
-
-# ---- PAGE CONFIG ----
-#st.set_page_config(page_title="Sales Viewer", layout="wide")
 
 st.title("🔍 Sales Data Viewer")
 
 # ---- DATABASE PATH ----
-#DB_PATH = r"D:\OneDriveBackUp\Dispatch\disptach.duckdb"
-def get_connection():
-    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
-    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
-    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
-    
-    # Option 2: Relative to the script's directory (if DB is in a subfolder)
-    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
-    
-    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
-    if not os.path.exists(db_path):
-        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
-    
-    return duckdb.connect(db_path)
+# Adjust this if your DB is not in the repo root (e.g., add a subfolder like "data/")
+db_filename = "dispatch.duckdb"  # Fixed typo
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", db_filename)  # Relative to repo root (handles /pages/ structure)
 
-# Load and prepare data
+# Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
+if not os.path.exists(DB_PATH):
+    print(f"Warning: DB file not found at {DB_PATH}. Creating a new one...")
 
-DB_PATH =get_connection()
 # ---- CACHED CONNECTION ----
 @st.cache_resource
 def get_connection():
     """Keep a single DuckDB connection alive for the Streamlit session."""
-    con = duckdb.connect(DB_PATH)
-    return con
+    return duckdb.connect(DB_PATH)
 
 # ---- CREATE TABLE (if not exists) ----
 def ensure_join_table(con):
@@ -130,6 +114,7 @@ st.divider()
 st.subheader("🔸 Latest 10 Records")
 try:
     con = get_connection()
+    ensure_join_table(con)  # Ensure table exists for preview too
     df_default = con.execute("""
         SELECT Code, Qty, Sales_Date, Route, Description 
         FROM ProductsWithCode 
