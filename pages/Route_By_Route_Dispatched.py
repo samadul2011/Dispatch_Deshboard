@@ -6,7 +6,7 @@ import os
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col3:
-    st.image("Dispatch_Deshboard/AtyabLogo.png", width=200)
+    st.image("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/AtyabLogo.png", width=200)
 
 with col2:
     st.color = "red"
