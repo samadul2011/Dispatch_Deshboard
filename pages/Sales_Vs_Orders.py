@@ -42,7 +42,7 @@ def get_connection():
 con = get_connection()
 
 # Get date range from the database
-@st.cache_data
+#@st.cache_data
 def get_date_range():
     query = """
     SELECT 
@@ -267,6 +267,7 @@ try:
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
     st.info("Please ensure the database file exists and contains the required tables (Orders and Sales).")
+
 
 
 
