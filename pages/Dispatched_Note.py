@@ -8,7 +8,7 @@ import os
 st.color = "red"
 st.markdown(f"<h1 style='color: {st.color};'>Dispatched Note</h1>", unsafe_allow_html=True)
 #st.set_page_config(page_title="Dispatched Note", layout="wide")
-st.subheader("Developed by :Blue[Samadul Hoque]")
+st.subheader("Developed by :red[Samadul Hoque]")
 
 # Database connection
 @st.cache_resource
@@ -178,6 +178,7 @@ except Exception as e:
 st.markdown("---")
 
 st.markdown("*Sales Pivot Dashboard - Built with Streamlit & DuckDB*")
+
 
 
 
