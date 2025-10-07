@@ -2,6 +2,7 @@ import streamlit as st
 import duckdb
 import pandas as pd
 from datetime import date
+import os
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col3:
