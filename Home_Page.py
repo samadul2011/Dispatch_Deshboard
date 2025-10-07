@@ -232,14 +232,20 @@ with footer_col3:
 st.sidebar.title("🌐 Navigation")
 st.sidebar.markdown("### Select a Dashboard Page")
 
-# You can add more pages here as your app grows
+# Updated page_options with all your pages
 page_options = {
-    "🏠 Home": "Current page",
-    "📊 Orders vs Sales": "Difference analysis", 
-    "📈 Sales Analytics": "Sales performance metrics",
-    "📦 Order Management": "Order tracking and management"
+    "🏠 Home": "Dashboard overview and main menu",
+    "📝 Dispatched Note": "View and manage dispatch notes",
+    "🛣️ Route By Route Dispatch": "Route-wise dispatch analysis", 
+    "📊 Sales vs Orders": "Compare sales and orders data",
+    "☀️ Sunburst Chart": "Interactive hierarchical data visualization",
+    "👨‍💼 Supervisor Wise Products": "Product analysis by supervisor",
+    "🏆 Top Items By Dispatch": "Top dispatched items ranking",
+    "📦 Top Products By Category": "Category-wise product performance", 
+    "📈 Total Dispatched Chart": "Overall dispatch trends and charts"
 }
 
+# Display pages in sidebar
 for page, description in page_options.items():
     st.sidebar.markdown(f"**{page}**")
     st.sidebar.caption(description)
