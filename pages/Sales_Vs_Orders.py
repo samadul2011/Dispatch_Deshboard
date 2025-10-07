@@ -14,7 +14,7 @@ with col3:
 # Page configuration
 st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
 st.subheader("Developed by :red[Samadul Hoque]")
-with col1__:
+with col1_:
     color="Blue"
     st.markdown(f"<h1 style='color: {color};'>📊 Orders vs Sales Difference Analysis</h1>", unsafe_allow_html=True)
     #st.title("📊 Orders vs Sales Difference Analysis")
@@ -264,6 +264,7 @@ try:
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
     st.info("Please ensure the database file exists and contains the required tables (Orders and Sales).")
+
 
 
 
