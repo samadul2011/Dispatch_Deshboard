@@ -37,7 +37,7 @@ def get_connection():
 
 # Load and prepare data
 
-DB_PATH =et_connection()
+DB_PATH =get_connection()
 # ---- CACHED CONNECTION ----
 @st.cache_resource
 def get_connection():
