@@ -92,6 +92,11 @@ st.markdown("""
         color: #262730;
         margin: 0.5rem 0;
     }
+    .nav-button {
+        width: 100%;
+        text-align: left;
+        margin: 5px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -228,27 +233,57 @@ with footer_col3:
     </div>
     """, unsafe_allow_html=True)
 
-# Sidebar Navigation
+# Sidebar Navigation with WORKING buttons
 st.sidebar.title("🌐 Navigation")
 st.sidebar.markdown("### Select a Dashboard Page")
 
-# Updated page_options with all your pages
-page_options = {
-    "🏠 Home": "Dashboard overview and main menu",
-    "📝 Dispatched Note": "View and manage dispatch notes",
-    "🛣️ Route By Route Dispatch": "Route-wise dispatch analysis", 
-    "📊 Sales vs Orders": "Compare sales and orders data",
-    "☀️ Sunburst Chart": "Interactive hierarchical data visualization",
-    "👨‍💼 Supervisor Wise Products": "Product analysis by supervisor",
-    "🏆 Top Items By Dispatch": "Top dispatched items ranking",
-    "📦 Top Products By Category": "Category-wise product performance", 
-    "📈 Total Dispatched Chart": "Overall dispatch trends and charts"
+# Define page configurations with their file paths
+page_configs = {
+    "🏠 Home": {"page": "Home", "description": "Dashboard overview and main menu"},
+    "📝 Dispatched Note": {"page": "Dispatched_Note", "description": "View and manage dispatch notes"},
+    "🛣️ Route By Route Dispatch": {"page": "Route_By_Route_Dispatched", "description": "Route-wise dispatch analysis"}, 
+    "📊 Sales vs Orders": {"page": "Sales_Vs_Orders", "description": "Compare sales and orders data"},
+    "☀️ Sunburst Chart": {"page": "Sun_Brust", "description": "Interactive hierarchical data visualization"},
+    "👨‍💼 Supervisor Wise Products": {"page": "Supervisor_Wise_Products", "description": "Product analysis by supervisor"},
+    "🏆 Top Items By Dispatch": {"page": "Top_Items_By_Dispatch", "description": "Top dispatched items ranking"},
+    "📦 Top Products By Category": {"page": "Top_Products_By_Categore", "description": "Category-wise product performance"}, 
+    "📈 Total Dispatched Chart": {"page": "Total_Dispatched_Chat", "description": "Overall dispatch trends and charts"}
 }
 
-# Display pages in sidebar
-for page, description in page_options.items():
-    st.sidebar.markdown(f"**{page}**")
-    st.sidebar.caption(description)
+# Create navigation buttons
+for page_name, config in page_configs.items():
+    # Use st.page_link for navigation (requires Streamlit 1.27+)
+    if hasattr(st, 'page_link'):
+        st.sidebar.page_link(
+            f"pages/{config['page']}.py", 
+            label=page_name,
+            icon="➡️"
+        )
+    else:
+        # Fallback for older Streamlit versions - use buttons
+        if st.sidebar.button(page_name, key=config['page']):
+            # For older versions, we can use query parameters or session state
+            st.session_state.current_page = config['page']
+            st.rerun()
+    
+    st.sidebar.caption(config['description'])
+    st.sidebar.markdown("---")
+
+# Alternative navigation method using selectbox (always works)
+st.sidebar.markdown("### 🔄 Quick Navigation")
+selected_page = st.sidebar.selectbox(
+    "Jump to page:",
+    options=list(page_configs.keys()),
+    index=0,
+    key="page_selector"
+)
+
+if selected_page:
+    page_file = page_configs[selected_page]["page"]
+    st.sidebar.info(f"Selected: {selected_page}")
+    if st.sidebar.button("🚀 Go to Page"):
+        # This will trigger navigation in Streamlit
+        st.switch_page(f"pages/{page_file}.py")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔧 Quick Actions")
