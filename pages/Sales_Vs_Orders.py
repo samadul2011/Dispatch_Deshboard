@@ -30,8 +30,35 @@ st.markdown(f"<h1 style='color: {color};'>📊 Orders vs Sales Difference Analys
 st.markdown("Developed by :red[Samad Hoque]. Analyze the difference between Orders and Sales quantities over a selected date range.")
 # Database connection
 @st.cache_resource
+GITHUB_DB_URL = "https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/disptach.duckdb"
+LOCAL_DB_PATH = "disptach.duckdb"
+
+# ---- DOWNLOAD DATABASE FROM GITHUB ----
+@st.cache_resource
+def download_database():
+    """Download database from GitHub if not already present."""
+    if not os.path.exists(LOCAL_DB_PATH):
+        with st.spinner("Downloading database from GitHub..."):
+            try:
+                urllib.request.urlretrieve(GITHUB_DB_URL, LOCAL_DB_PATH)
+                st.success("Database downloaded successfully!")
+            except Exception as e:
+                st.error(f"Error downloading database: {e}")
+                return None
+    return LOCAL_DB_PATH
+
+# Download the database
+DB_PATH = download_database()
+
+# ---- CACHED CONNECTION ----
+@st.cache_resource
 def get_connection():
-    return duckdb.connect("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/disptach.duckdb")
+    """Keep a single DuckDB connection alive for the Streamlit session."""
+    if DB_PATH:
+        con = duckdb.connect(DB_PATH)
+        return con
+    return None
+
 
 con = get_connection()
 
@@ -261,6 +288,7 @@ try:
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
     st.info("Please ensure the database file exists and contains the required tables (Orders and Sales).")
+
 
 
 
