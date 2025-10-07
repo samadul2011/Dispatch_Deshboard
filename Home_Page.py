@@ -1,30 +1,204 @@
-from ast import With
 import streamlit as st
 
+# Page configuration MUST be the first Streamlit command
+st.set_page_config(
+    page_title="Dispatch Dashboard",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 3rem;
+        font-weight: bold;
+        text-align: center;
+        color: #1f77b4;
+        margin-bottom: 1rem;
+    }
+    .sub-header {
+        font-size: 1.5rem;
+        text-align: center;
+        color: #2e8b57;
+        margin-bottom: 2rem;
+    }
+    .welcome-card {
+        background-color: #f0f2f6;
+        padding: 2rem;
+        border-radius: 10px;
+        border-left: 5px solid #1f77b4;
+        margin-bottom: 2rem;
+    }
+    .feature-card {
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e0e0e0;
+        height: 100%;
+    }
+    .developer-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+    }
+    .metric-card {
+        background-color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        border-top: 4px solid #1f77b4;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Header Section
 col1, col2, col3 = st.columns([1, 2, 1])
-color = "green"  # or "#008000"
-with col2:
-    st.title("Welcome to the Dispatch Page")
 
 with col1:
-    st.image("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/AtyabLogo.png", width=200)
-
-st.set_page_config(page_title="📊 Sales Pivot Dashboard", layout="wide")
-
-color= "red"
-st.markdown(f"<h2 style='color: {color};'>Sales Data Analysis with Interactive Filters</h2>", unsafe_allow_html=True)
+    st.image("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/AtyabLogo.png", width=150)
 
 with col2:
-    st.markdown(":green[Sales Dashboard developed] :red[by]")
-    st.markdown(":blue[Dispatch Supervisor]")
-    st.markdown(":green[Samadul Hoque].")
+    st.markdown('<div class="main-header">🚀 Dispatch Dashboard</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">Smart Analytics for Better Decisions</div>', unsafe_allow_html=True)
 
+with col3:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("**Version:** 2.0", unsafe_allow_html=True)
 
-st.markdown("This dashboard allows you to filter sales data by supervisor and date range, providing insights into sales performance.")
-st.markdown("Use the sidebar to navigate through different sections of the dashboard.")
+# Welcome Section
+st.markdown("""
+<div class="welcome-card">
+    <h3>🎯 Welcome to Your Dispatch Command Center</h3>
+    <p>This comprehensive dashboard provides real-time insights into your sales and orders data. 
+    Monitor performance, analyze trends, and make data-driven decisions with our interactive tools.</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.markdown(":green[Note: This dashboard is a work in progress and will be updated with more features soon.]")
-#color = "blue"
-#st.markdown(f"<h3 style='color: {color};'>Sales Dashboard developed by Dispatch Supervisor Samadul Hoque.</h3>", unsafe_allow_html=True)
-#st.subheader("Sales Dashboard developed by Dispatch Supervisor Samadul Hoque")
-st.sidebar.success("Select a page above.")
+# Key Features Section
+st.subheader("📈 Dashboard Features")
+
+feature_col1, feature_col2, feature_col3 = st.columns(3)
+
+with feature_col1:
+    st.markdown("""
+    <div class="feature-card">
+        <h4>📊 Orders vs Sales Analysis</h4>
+        <p>Compare orders and sales quantities with detailed difference analysis and filtering capabilities.</p>
+        <ul>
+            <li>Date range filtering</li>
+            <li>Product code search</li>
+            <li>Difference calculations</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+with feature_col2:
+    st.markdown("""
+    <div class="feature-card">
+        <h4>🔍 Interactive Filters</h4>
+        <p>Dynamic filtering options to drill down into specific data segments.</p>
+        <ul>
+            <li>Multiple date ranges</li>
+            <li>Product code selection</li>
+            <li>Real-time updates</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+with feature_col3:
+    st.markdown("""
+    <div class="feature-card">
+        <h4>📥 Export & Share</h4>
+        <p>Export your analysis results for reporting and sharing.</p>
+        <ul>
+            <li>CSV download</li>
+            <li>Filtered data export</li>
+            <li>Printable reports</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Quick Stats Section
+st.subheader("🚀 Getting Started")
+
+guide_col1, guide_col2, guide_col3 = st.columns(3)
+
+with guide_col1:
+    st.markdown("""
+    <div class="metric-card">
+        <h3>1</h3>
+        <p><b>Select a Page</b><br>Choose from the sidebar menu to access different analyses</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with guide_col2:
+    st.markdown("""
+    <div class="metric-card">
+        <h3>2</h3>
+        <p><b>Apply Filters</b><br>Use date ranges and product filters to focus on specific data</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with guide_col3:
+    st.markdown("""
+    <div class="metric-card">
+        <h3>3</h3>
+        <p><b>Analyze & Export</b><br>Review insights and download your analysis</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Developer Info Section
+st.markdown("""
+<div class="developer-info">
+    <h3>👨‍💻 Developed by Dispatch Team</h3>
+    <p><strong>Samadul Hoque</strong> | Dispatch Supervisor</p>
+    <p>📧 Contact: Your professional analytics partner for dispatch operations</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Footer
+st.markdown("---")
+footer_col1, footer_col2, footer_col3 = st.columns(3)
+
+with footer_col1:
+    st.markdown("**🔒 Data Security**")
+    st.markdown("Your data is processed securely and never stored on external servers.")
+
+with footer_col2:
+    st.markdown("**🔄 Live Updates**")
+    st.markdown("Data refreshes automatically with the latest information.")
+
+with footer_col3:
+    st.markdown("**🆘 Need Help?**")
+    st.markdown("Contact the dispatch team for support and feature requests.")
+
+# Sidebar Navigation
+st.sidebar.title("🌐 Navigation")
+st.sidebar.markdown("### Select a Dashboard Page")
+
+# You can add more pages here as your app grows
+page_options = {
+    "🏠 Home": "Current page",
+    "📊 Orders vs Sales": "Difference analysis",
+    "📈 Sales Analytics": "Sales performance metrics",
+    "📦 Order Management": "Order tracking and management"
+}
+
+for page, description in page_options.items():
+    st.sidebar.markdown(f"**{page}**")
+    st.sidebar.caption(description)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔧 Quick Actions")
+if st.sidebar.button("🔄 Refresh All Data"):
+    st.cache_data.clear()
+    st.success("Data refreshed successfully!")
+
+st.sidebar.markdown("### 📞 Support")
+st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
