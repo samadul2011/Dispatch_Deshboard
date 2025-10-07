@@ -12,37 +12,31 @@ with col3:
     st.image("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/AtyabLogo.png", width=200)
     
 # Page configuration
-st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
-st.subheader("Developed by :blue[Samadul Hoque]")
-with col1:
-    st.subheader(":red[Orders vs Sales]  📊 ")
-with col2:
-    st.subheader(" :green[Difference Analysis]")
+#st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
+#st.subheader("Developed by :blue[Samadul Hoque]")
+#with col1:
+   # st.subheader(":red[Orders vs Sales]  📊 ")
+#with col2:
+    #st.subheader(" :green[Difference Analysis]")
     #color="Blue"
     #st.markdown(f"<h1 style='color: {color};'>📊 Orders vs Sales Difference Analysis</h1>", unsafe_allow_html=True)
     
 
 # Database connection
+# Page configuration
+st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
+color="Blue"
+st.markdown(f"<h1 style='color: {color};'>📊 Orders vs Sales Difference Analysis</h1>", unsafe_allow_html=True)
+st.markdown("Developed by :red[Samad Hoque]. Analyze the difference between Orders and Sales quantities over a selected date range.")
+# Database connection
 @st.cache_resource
-#def get_connection():
-    #return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
 def get_connection():
-    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
-    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
-    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
-    
-    # Option 2: Relative to the script's directory (if DB is in a subfolder)
-    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
-    
-    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
-    if not os.path.exists(db_path):
-        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
-    
-    return duckdb.connect(db_path)
+    return duckdb.connect("https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/disptach.duckdb")
+
 con = get_connection()
 
 # Get date range from the database
-#@st.cache_data
+@st.cache_data
 def get_date_range():
     query = """
     SELECT 
@@ -211,7 +205,7 @@ try:
     
     with col3:
         total_sales = display_df['Sales Qty'].sum()
-         st.metric("Total Sales Qty", f"{total_sales:,}")
+        st.metric("Total Sales Qty", f"{total_sales:,}")
     
     with col4:
         total_diff = display_df['Difference'].sum()
@@ -267,8 +261,6 @@ try:
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
     st.info("Please ensure the database file exists and contains the required tables (Orders and Sales).")
-
-
 
 
 
