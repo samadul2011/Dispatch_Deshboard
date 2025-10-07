@@ -96,6 +96,13 @@ st.markdown("""
         width: 100%;
         text-align: left;
         margin: 5px 0;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #e0e0e0;
+        background-color: white;
+    }
+    .nav-button:hover {
+        background-color: #f0f2f6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -233,57 +240,61 @@ with footer_col3:
     </div>
     """, unsafe_allow_html=True)
 
-# Sidebar Navigation with WORKING buttons
+# Sidebar Navigation - SIMPLIFIED AND ROBUST
 st.sidebar.title("🌐 Navigation")
 st.sidebar.markdown("### Select a Dashboard Page")
 
-# Define page configurations with their file paths
+# Define page configurations
 page_configs = {
-    "🏠 Home": {"page": "Home", "description": "Dashboard overview and main menu"},
-    "📝 Dispatched Note": {"page": "Dispatched_Note", "description": "View and manage dispatch notes"},
-    "🛣️ Route By Route Dispatch": {"page": "Route_By_Route_Dispatched", "description": "Route-wise dispatch analysis"}, 
-    "📊 Sales vs Orders": {"page": "Sales_Vs_Orders", "description": "Compare sales and orders data"},
-    "☀️ Sunburst Chart": {"page": "Sun_Brust", "description": "Interactive hierarchical data visualization"},
-    "👨‍💼 Supervisor Wise Products": {"page": "Supervisor_Wise_Products", "description": "Product analysis by supervisor"},
-    "🏆 Top Items By Dispatch": {"page": "Top_Items_By_Dispatch", "description": "Top dispatched items ranking"},
-    "📦 Top Products By Category": {"page": "Top_Products_By_Categore", "description": "Category-wise product performance"}, 
-    "📈 Total Dispatched Chart": {"page": "Total_Dispatched_Chat", "description": "Overall dispatch trends and charts"}
+    "🏠 Home": "Home_Page",
+    "📝 Dispatched Note": "Dispatched_Note", 
+    "🛣️ Route By Route Dispatch": "Route_By_Route_Dispatched",
+    "📊 Sales vs Orders": "Sales_Vs_Orders",
+    "☀️ Sunburst Chart": "Sun_Brust",
+    "👨‍💼 Supervisor Wise Products": "Supervisor_Wise_Products",
+    "🏆 Top Items By Dispatch": "Top_Items_By_Dispatch",
+    "📦 Top Products By Category": "Top_Products_By_Categore",
+    "📈 Total Dispatched Chart": "Total_Dispatched_Chat"
 }
 
-# Create navigation buttons
-for page_name, config in page_configs.items():
-    # Use st.page_link for navigation (requires Streamlit 1.27+)
-    if hasattr(st, 'page_link'):
-        st.sidebar.page_link(
-            f"pages/{config['page']}.py", 
-            label=page_name,
-            icon="➡️"
-        )
-    else:
-        # Fallback for older Streamlit versions - use buttons
-        if st.sidebar.button(page_name, key=config['page']):
-            # For older versions, we can use query parameters or session state
-            st.session_state.current_page = config['page']
-            st.rerun()
-    
-    st.sidebar.caption(config['description'])
-    st.sidebar.markdown("---")
+page_descriptions = {
+    "🏠 Home": "Dashboard overview and main menu",
+    "📝 Dispatched Note": "View and manage dispatch notes",
+    "🛣️ Route By Route Dispatch": "Route-wise dispatch analysis", 
+    "📊 Sales vs Orders": "Compare sales and orders data",
+    "☀️ Sunburst Chart": "Interactive hierarchical data visualization",
+    "👨‍💼 Supervisor Wise Products": "Product analysis by supervisor",
+    "🏆 Top Items By Dispatch": "Top dispatched items ranking",
+    "📦 Top Products By Category": "Category-wise product performance", 
+    "📈 Total Dispatched Chart": "Overall dispatch trends and charts"
+}
 
-# Alternative navigation method using selectbox (always works)
-st.sidebar.markdown("### 🔄 Quick Navigation")
-selected_page = st.sidebar.selectbox(
-    "Jump to page:",
+# Initialize session state for current page
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = "🏠 Home"
+
+# Simple navigation using radio buttons (always works)
+st.sidebar.markdown("### 📋 Available Pages")
+selected_page = st.sidebar.radio(
+    "Choose a page:",
     options=list(page_configs.keys()),
-    index=0,
-    key="page_selector"
+    index=list(page_configs.keys()).index(st.session_state.current_page),
+    key="page_navigation"
 )
 
-if selected_page:
-    page_file = page_configs[selected_page]["page"]
-    st.sidebar.info(f"Selected: {selected_page}")
-    if st.sidebar.button("🚀 Go to Page"):
-        # This will trigger navigation in Streamlit
-        st.switch_page(f"pages/{page_file}.py")
+# Show page description
+if selected_page in page_descriptions:
+    st.sidebar.info(f"**{selected_page}**\n\n{page_descriptions[selected_page]}")
+
+# Manual navigation instructions
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🚀 How to Navigate")
+st.sidebar.markdown("""
+To navigate between pages:
+1. Select a page from the list above
+2. Use the Streamlit sidebar menu (←) 
+3. Or use the page selector in the main app header
+""")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔧 Quick Actions")
@@ -293,3 +304,32 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
+# Main content based on selected page
+st.session_state.current_page = selected_page
+
+# Display current page information
+st.markdown(f"### 📍 Currently Viewing: {selected_page}")
+st.markdown(f"**Description:** {page_descriptions.get(selected_page, 'No description available')}")
+
+if selected_page != "🏠 Home":
+    st.warning(f"🔍 You've selected **{selected_page}**. To view this page, please use the Streamlit sidebar navigation or manually navigate to the corresponding page file.")
+    st.info("💡 **Tip:** Streamlit automatically detects pages in the 'pages' folder. Make sure your page files are located in the correct directory.")
+else:
+    st.success("✅ You are currently on the Home page. This is the main dashboard overview.")
+
+# Additional helpful information
+st.markdown("---")
+st.markdown("### 📁 Your Available Pages")
+st.markdown("The following pages are configured in your dashboard:")
+
+# Display all available pages in a nice format
+cols = st.columns(3)
+for i, (page_name, description) in enumerate(page_descriptions.items()):
+    with cols[i % 3]:
+        st.markdown(f"""
+        <div style='border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin: 5px 0; background-color: #f8f9fa;'>
+            <h4 style='margin: 0 0 10px 0; color: #1f77b4;'>{page_name}</h4>
+            <p style='margin: 0; font-size: 0.9em; color: #666;'>{description}</p>
+        </div>
+        """, unsafe_allow_html=True)
