@@ -27,20 +27,31 @@ def get_connection():
     """Keep a single DuckDB connection alive for the Streamlit session."""
     return duckdb.connect(DB_PATH)
 
-# ---- SAMPLE DATA LOADER (Uncomment & adjust if you have CSVs) ----
-def load_sample_data(con):
-    """Load sample data from CSVs if tables are missing. Add your sales.csv/products.csv to repo root."""
+# ---- LOAD DATA FROM CSVS (Uncomment once sales.csv & products.csv are in repo root) ----
+def load_data_from_csvs(con):
+    """Import data from CSVs if base tables are missing."""
     try:
-        # Example: Assume CSVs have columns like Code, Qty, Sales_Date, Route for sales; Code, Description for products
+        # Adjust column names if your CSVs differ
         con.execute("CREATE OR REPLACE TABLE Sales AS SELECT * FROM read_csv_auto('sales.csv')")
         con.execute("CREATE OR REPLACE TABLE Products AS SELECT * FROM read_csv_auto('products.csv')")
-        st.success("Sample data loaded from CSVs!")
+        st.success("Data loaded from CSVs!")
+        return True
     except Exception as e:
-        st.error(f"Failed to load sample data: {e}. Add CSVs to repo root.")
+        st.error(f"Failed to load CSVs: {e}. Commit sales.csv and products.csv to repo root.")
+        return False
 
 # ---- CREATE TABLE (if not exists) ----
 def ensure_join_table(con):
     """Create or replace ProductsWithCode if base tables exist."""
+    try:
+        # First, ensure base tables exist (load from CSVs if not)
+        con.execute("SELECT 1 FROM Sales LIMIT 1")  # Test Sales
+        con.execute("SELECT 1 FROM Products LIMIT 1")  # Test Products
+    except:
+        if not load_data_from_csvs(con):  # Uncomment the call above to enable CSV loading
+            st.error("❌ Base tables 'Sales' and 'Products' missing. Commit dispatch.duckdb or add CSVs.")
+            return False
+
     try:
         con.execute("""
             CREATE OR REPLACE TABLE ProductsWithCode AS
@@ -56,13 +67,8 @@ def ensure_join_table(con):
         """)
         return True
     except Exception as e:
-        if "Table with name Sales does not exist" in str(e) or "Table with name Products does not exist" in str(e):
-            st.error("❌ Database setup incomplete: 'Sales' and 'Products' tables are missing. Add data via CSVs or commit the .duckdb file.")
-            # Optionally load samples: load_sample_data(con)  # Uncomment if CSVs exist
-            return False
-        else:
-            st.error(f"Unexpected DB error: {e}")
-            return False
+        st.error(f"DB error during join: {e}")
+        return False
 
 # ---- LOAD FILTERED DATA ----
 @st.cache_data
@@ -70,7 +76,7 @@ def load_data(start_date=None, end_date=None, code_filter=None):
     """Load filtered data safely."""
     con = get_connection()
     if not ensure_join_table(con):
-        return pd.DataFrame()  # Return empty DF on error
+        return pd.DataFrame()  # Empty on error
 
     query = """
         SELECT 
@@ -101,7 +107,7 @@ st.sidebar.header("Filter Options")
 
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    start_date = st.date_input("Start Date", value=date(2024, 1, 1))  # Adjusted for likely data range
+    start_date = st.date_input("Start Date", value=date(2024, 1, 1))  # Realistic default
 with col2:
     end_date = st.date_input("End Date", value=date.today())
 
@@ -117,7 +123,7 @@ st.write(f"Records found: {len(df)}")
 if not df.empty:
     st.dataframe(df, use_container_width=True)
 else:
-    st.info("No records found for the selected filters. Check DB setup above.")
+    st.info("No records found. Check filters and DB setup.")
 
 # ---- DOWNLOAD OPTION ----
 if not df.empty:
@@ -129,7 +135,7 @@ if not df.empty:
         mime="text/csv",
     )
 
-# ---- DEFAULT PREVIEW (optional) ----
+# ---- DEFAULT PREVIEW ----
 st.divider()
 st.subheader("🔸 Latest 10 Records")
 try:
@@ -145,4 +151,4 @@ try:
     else:
         st.info("Preview unavailable—set up DB first.")
 except Exception as e:
-    st.error(f"Error loading preview: {e}")
+    st.error(f"Preview error: {e}")
