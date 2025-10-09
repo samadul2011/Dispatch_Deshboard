@@ -50,22 +50,30 @@ min_date = df['Sales_Date'].min().date()
 max_date = df['Sales_Date'].max().date()
 
 # Date range selector
-start_date, end_date = st.sidebar.date_input(
+selected_dates = st.sidebar.date_input(
     "Select Date Range",
     [min_date, max_date],
     min_value=min_date,
     max_value=max_date
 )
 
-# Apply date filter
-if len(start_date) == 2:  # If user selects a range
-    start_date, end_date = start_date
+# Apply date filter - FIXED LOGIC
+if len(selected_dates) == 2:
+    # User selected a date range
+    start_date, end_date = selected_dates
+elif len(selected_dates) == 1:
+    # User selected only one date, use that single day
+    start_date = end_date = selected_dates[0]
 else:
-    # If only one date selected, use that date for both
-    end_date = start_date
+    # Fallback to full range
+    start_date, end_date = min_date, max_date
 
+# Apply the date filter
 mask = (df['Sales_Date'].dt.date >= start_date) & (df['Sales_Date'].dt.date <= end_date)
 filtered_df = df.loc[mask]
+
+# Show filter info
+st.sidebar.info(f"Showing data from: {start_date} to {end_date}")
 
 # Process data for sunburst chart
 @st.cache_data
@@ -127,105 +135,110 @@ def process_sunburst_data(_df):
 
     return pd.DataFrame(sunburst_final), top_products_data
 
-# Process the filtered data
-sunburst_df, top_products_data = process_sunburst_data(filtered_df)
-
-# Create the sunburst chart
-fig = px.sunburst(
-    sunburst_df,
-    ids='ids',
-    names='labels',
-    parents='parents',
-    values='values',
-    title=f'Sales Distribution: Category3 → Category2 → Top 20 Products by Quantity ({start_date} to {end_date})',
-    color='values',
-    color_continuous_scale='Viridis'
-)
-
-# Customize the layout
-fig.update_layout(
-    title_font_size=16,
-    title_x=0.5,
-    width=800,
-    height=600,
-    font_size=12
-)
-
-# Update traces for better visibility
-fig.update_traces(
-    textinfo="label+percent parent",
-    hovertemplate='<b>%{label}</b><br>Quantity: %{value}<br>Percentage: %{percentParent}<extra></extra>'
-)
-
-# Display in Streamlit
-st.title("📊 Sales Data Sunburst Chart")
-st.write(f"This chart shows the sales distribution by Category3, Category2, and the top 20 products within each Category2 for the selected date range.")
-
-# Show some statistics
-st.subheader("Data Summary")
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric("Total Categories", len(top_products_data['Category3'].unique()))
-
-with col2:
-    st.metric("Total Products", len(top_products_data))
-
-with col3:
-    st.metric("Total Quantity", f"{top_products_data['Qty'].sum():,.0f}")
-
-with col4:
-    st.metric("Date Range", f"{start_date} to {end_date}")
-
-# Display the chart
-st.plotly_chart(fig, use_container_width=True)
-
-# Optional: Show the top products table
-if st.checkbox("Show Top Products Data"):
-    st.subheader("Top 20 Products per Category2")
+# Check if filtered data is not empty
+if not filtered_df.empty:
+    # Process the filtered data
+    sunburst_df, top_products_data = process_sunburst_data(filtered_df)
     
-    # Create a more readable display
-    display_data = top_products_data.copy()
-    display_data = display_data.sort_values(['Category3', 'Category2', 'Qty'], ascending=[True, True, False])
-    display_data['Qty'] = display_data['Qty'].apply(lambda x: f"{x:,.0f}")
-    
-    st.dataframe(
-        display_data,
-        column_config={
-            "Category3": "Category 3",
-            "Category2": "Category 2",
-            "Code": "Product Code",
-            "Qty": "Total Quantity"
-        },
-        hide_index=True,
-        use_container_width=True
-    )
+    # Check if we have data for the sunburst chart
+    if not sunburst_df.empty and not top_products_data.empty:
+        # Create the sunburst chart
+        fig = px.sunburst(
+            sunburst_df,
+            ids='ids',
+            names='labels',
+            parents='parents',
+            values='values',
+            title=f'Sales Distribution: Category3 → Category2 → Top 20 Products by Quantity ({start_date} to {end_date})',
+            color='values',
+            color_continuous_scale='Viridis'
+        )
 
-# Optional: Category-wise breakdown
-if st.checkbox("Show Category Breakdown"):
-    st.subheader("Sales by Category")
-    
-    category_summary = top_products_data.groupby('Category3')['Qty'].agg(['sum', 'count']).reset_index()
-    category_summary.columns = ['Category', 'Total Quantity', 'Number of Products']
-    category_summary = category_summary.sort_values('Total Quantity', ascending=False)
-    category_summary['Total Quantity'] = category_summary['Total Quantity'].apply(lambda x: f"{x:,.0f}")
-    
-    st.dataframe(category_summary, hide_index=True, use_container_width=True)
+        # Customize the layout
+        fig.update_layout(
+            title_font_size=16,
+            title_x=0.5,
+            width=800,
+            height=600,
+            font_size=12
+        )
 
-# Download option
-if st.button("📥 Download Processed Data"):
-    csv = top_products_data.to_csv(index=False)
-    st.download_button(
-        label="Download CSV",
-        data=csv,
-        file_name=f"sunburst_data_{start_date}_{end_date}.csv",
-        mime="text/csv"
-    )
+        # Update traces for better visibility
+        fig.update_traces(
+            textinfo="label+percent parent",
+            hovertemplate='<b>%{label}</b><br>Quantity: %{value}<br>Percentage: %{percentParent}<extra></extra>'
+        )
+
+        # Display in Streamlit
+        st.title("📊 Sales Data Sunburst Chart")
+        st.write(f"This chart shows the sales distribution by Category3, Category2, and the top 20 products within each Category2 for the selected date range.")
+
+        # Show some statistics
+        st.subheader("Data Summary")
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("Total Categories", len(top_products_data['Category3'].unique()))
+
+        with col2:
+            st.metric("Total Products", len(top_products_data))
+
+        with col3:
+            st.metric("Total Quantity", f"{top_products_data['Qty'].sum():,.0f}")
+
+        with col4:
+            st.metric("Date Range", f"{start_date} to {end_date}")
+
+        # Display the chart
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Optional: Show the top products table
+        if st.checkbox("Show Top Products Data"):
+            st.subheader("Top 20 Products per Category2")
+            
+            # Create a more readable display
+            display_data = top_products_data.copy()
+            display_data = display_data.sort_values(['Category3', 'Category2', 'Qty'], ascending=[True, True, False])
+            display_data['Qty'] = display_data['Qty'].apply(lambda x: f"{x:,.0f}")
+            
+            st.dataframe(
+                display_data,
+                column_config={
+                    "Category3": "Category 3",
+                    "Category2": "Category 2",
+                    "Code": "Product Code",
+                    "Qty": "Total Quantity"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
+        # Optional: Category-wise breakdown
+        if st.checkbox("Show Category Breakdown"):
+            st.subheader("Sales by Category")
+            
+            category_summary = top_products_data.groupby('Category3')['Qty'].agg(['sum', 'count']).reset_index()
+            category_summary.columns = ['Category', 'Total Quantity', 'Number of Products']
+            category_summary = category_summary.sort_values('Total Quantity', ascending=False)
+            category_summary['Total Quantity'] = category_summary['Total Quantity'].apply(lambda x: f"{x:,.0f}")
+            
+            st.dataframe(category_summary, hide_index=True, use_container_width=True)
+
+        # Download option
+        csv = top_products_data.to_csv(index=False)
+        st.download_button(
+            label="📥 Download Processed Data",
+            data=csv,
+            file_name=f"sunburst_data_{start_date}_{end_date}.csv",
+            mime="text/csv"
+        )
+    else:
+        st.warning("No data available for the selected date range after processing. Please select a different date range.")
+else:
+    st.warning("No sales data found for the selected date range. Please select a different date range.")
 
 # Close connection (optional since it's cached)
-# conn.close()
-# Sidebar Navigation - WITH ACTUAL PAGE SWITCHING
-st.sidebar.title("🌐 Navigation")
+# conn.close()st.sidebar.title("🌐 Navigation")
 st.sidebar.markdown("### Select a Dashboard Page")
 
 # Define page configurations
@@ -303,5 +316,6 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
 
 
