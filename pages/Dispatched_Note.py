@@ -1,27 +1,26 @@
-import streamlit as st
-import duckdb
-import pandas as pd
 import os
-import requests 
+import requests
+import duckdb
+import streamlit as st
 
+@st.cache_resource
+def get_duckdb():
     db_filename = "dispatch.duckdb"
-    share_url = "https://atyabfoodindustries-my.sharepoint.com/:u:/g/personal/dispatch_atyab_om/EZ4DDYzzMl1CjXBRh00Nq6IBk7pXmNP8QbKwlkARdE1x_Q?e=h646tk"
+    # Direct download link from Google Drive
+    url = "https://drive.google.com/uc?export=download&id=1tYt3Z5McuQYifmNImZyACPHW9C9ju7L4"
 
-    # Try constructing direct download URL
-    token = base64.urlsafe_b64encode(share_url.encode()).decode().rstrip("=")
-    direct_url = f"https://graph.microsoft.com/v1.0/shares/{token}/root/content"
-
-    if not os.path.exists(db_path):
-        st.write("Downloading database...")
-        resp = requests.get(direct_url, allow_redirects=True)
+    if not os.path.exists(db_filename):
+        st.write("Downloading database from Google Drive...")
+        resp = requests.get(url, allow_redirects=True)
         if resp.status_code != 200:
-            st.error(f"Failed to download DB: {resp.status_code}")
+            st.error(f"Failed to download database. Status code = {resp.status_code}")
             st.stop()
-        with open(db_path, "wb") as f:
+        with open(db_filename, "wb") as f:
             f.write(resp.content)
 
-    return duckdb.connect(db_path)
+    return duckdb.connect(db_filename)
 
+# Get connection
 con = get_duckdb()
 st.success("Connected to DuckDB!")
 
@@ -279,6 +278,7 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
 
 
 
