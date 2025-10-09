@@ -1,5 +1,6 @@
 import streamlit as st
 import duckdb
+import requests
 import pandas as pd
 from datetime import date
 import urllib.request
@@ -18,25 +19,28 @@ st.title("🔍 Sales Data Viewer")
 
 # ---- DATABASE PATH ---- 
 # GitHub raw content URL for the database file
-GITHUB_DB_URL = "https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/disptach.duckdb"
+GITHUB_DB_URL = "https://drive.google.com/uc?export=download&id=1tYt3Z5McuQYifmNImZyACPHW9C9ju7L4"
 LOCAL_DB_PATH = "disptach.duckdb"
 
 # ---- DOWNLOAD DATABASE FROM GITHUB ----
 @st.cache_resource
-def download_database():
-    """Download database from GitHub if not already present."""
-    if not os.path.exists(LOCAL_DB_PATH):
-        with st.spinner("Downloading database from GitHub..."):
-            try:
-                urllib.request.urlretrieve(GITHUB_DB_URL, LOCAL_DB_PATH)
-                st.success("Database downloaded successfully!")
-            except Exception as e:
-                st.error(f"Error downloading database: {e}")
-                return None
-    return LOCAL_DB_PATH
+ if not os.path.exists(db_filename):
+        st.write("Downloading database from Google Drive...")
+        resp = requests.get(url, allow_redirects=True)
+        if resp.status_code != 200:
+            st.error(f"Failed to download database. Status code = {resp.status_code}")
+            st.stop()
+        with open(db_filename, "wb") as f:
+            f.write(resp.content)
 
-# Download the database
-DB_PATH = download_database()
+    return duckdb.connect(db_filename)
+
+# Get connection
+DB_PATH = get_duckdb()
+st.success("Connected to DuckDB!")
+
+
+
 
 # ---- CACHED CONNECTION ----
 @st.cache_resource
