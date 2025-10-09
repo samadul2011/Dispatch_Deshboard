@@ -2,7 +2,7 @@ import os
 import requests
 import duckdb
 import streamlit as st
-import pandas as pd
+import pandas as pd  # Missing import
 
 @st.cache_resource
 def get_duckdb():
@@ -25,34 +25,13 @@ def get_duckdb():
 con = get_duckdb()
 st.success("Connected to DuckDB!")
 
-
 # Page configuration
-st.color = "red"
-st.markdown(f"<h1 style='color: {st.color};'>Dispatched Note</h1>", unsafe_allow_html=True)
-#st.set_page_config(page_title="Dispatched Note", layout="wide")
+st.markdown("<h1 style='color: red;'>Dispatched Note</h1>", unsafe_allow_html=True)
 st.subheader("Developed by :green[Samadul Hoque]")
 
-# Database connection
-#@st.cache_resource
-#def get_connection():
-    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
-    #db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
-   # db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
-    
-    # Option 2: Relative to the script's directory (if DB is in a subfolder)
-    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
-    
-    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
-   # if not os.path.exists(db_path):
-       # print(f"Warning: DB file not found at {db_path}. Creating a new one...")
-    
-    #return duckdb.connect(db_path)
-
 # Load and prepare data
-#@st.cache_data
-#def load_data():
-    #con = get_connection()
-    
+@st.cache_data
+def load_data():
     # Create the joined table
     con.execute("""
         CREATE OR REPLACE TABLE SalesWithSupervisors AS
@@ -80,7 +59,6 @@ def get_filter_values(df):
     return supervisors, dates
 
 # Main app
-#st.title("📊 Sales Pivot Dashboard")
 st.markdown("---")
 
 # Load data
@@ -107,21 +85,32 @@ try:
     
     selected_dates = None
     if date_filter_type == "Single Date":
+        # Convert numpy datetime64 to Python datetime for date_input
+        min_date = pd.to_datetime(dates.min()).date() if len(dates) > 0 else None
+        max_date = pd.to_datetime(dates.max()).date() if len(dates) > 0 else None
+        default_date = max_date if max_date else None
+        
         selected_date = st.sidebar.date_input(
             "Select Sales Date:",
-            value=dates.max() if len(dates) > 0 else None,
-            min_value=dates.min() if len(dates) > 0 else None,
-            max_value=dates.max() if len(dates) > 0 else None
+            value=default_date,
+            min_value=min_date,
+            max_value=max_date
         )
         selected_dates = [pd.Timestamp(selected_date)]
     elif date_filter_type == "Date Range":
+        # Convert numpy datetime64 to Python datetime for date_input
+        min_date = pd.to_datetime(dates.min()).date() if len(dates) > 0 else None
+        max_date = pd.to_datetime(dates.max()).date() if len(dates) > 0 else None
+        default_start = min_date if min_date else None
+        default_end = max_date if max_date else None
+        
         date_range = st.sidebar.date_input(
             "Select Date Range:",
-            value=(dates.min(), dates.max()) if len(dates) > 0 else None,
-            min_value=dates.min() if len(dates) > 0 else None,
-            max_value=dates.max() if len(dates) > 0 else None
+            value=(default_start, default_end) if default_start and default_end else None,
+            min_value=min_date,
+            max_value=max_date
         )
-        if isinstance(date_range, tuple) and len(date_range) == 2:
+        if len(date_range) == 2:
             selected_dates = pd.date_range(start=date_range[0], end=date_range[1])
     
     # Apply filters
@@ -132,7 +121,13 @@ try:
         filtered_df = filtered_df[filtered_df['SupervisorName'] == selected_supervisor]
     
     if date_filter_type != "All Dates" and selected_dates is not None:
-        filtered_df = filtered_df[filtered_df['Sales_Date'].isin(selected_dates)]
+        if date_filter_type == "Single Date":
+            filtered_df = filtered_df[filtered_df['Sales_Date'].dt.date == selected_dates[0].date()]
+        else:  # Date Range
+            filtered_df = filtered_df[
+                (filtered_df['Sales_Date'].dt.date >= selected_dates[0].date()) & 
+                (filtered_df['Sales_Date'].dt.date <= selected_dates[-1].date())
+            ]
     
     # Display filter summary
     st.sidebar.markdown("---")
@@ -158,14 +153,14 @@ try:
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             total_qty = filtered_df['Qty'].sum()
-            st.metric("Total Quantity", f"{total_qty:,.0f}" if isinstance(total_qty, (int, float)) else str(total_qty))
+            st.metric("Total Quantity", f"{total_qty:,.0f}")
         with col2:
             st.metric("Unique Codes", len(pivot_table.index))
         with col3:
-            st.metric("Unique Routes", len(pivot_table.columns))
+            st.metric("Unique Routes", len(pivot_table.columns) - 1)  # Subtract 1 for Total column
         with col4:
             avg_qty = filtered_df['Qty'].mean()
-            st.metric("Avg Qty per Code", f"{avg_qty:,.1f}" if isinstance(avg_qty, (int, float)) else str(avg_qty))
+            st.metric("Avg Qty per Code", f"{avg_qty:,.1f}")
         
         st.markdown("---")
         
@@ -179,10 +174,11 @@ try:
         st.markdown("---")
         csv = pivot_table.to_csv()
         filename_date = selected_dates[0].strftime('%Y%m%d') if date_filter_type == "Single Date" and selected_dates else "all_dates"
+        supervisor_name = selected_supervisor.replace(" ", "_") if selected_supervisor != "All" else "all_supervisors"
         st.download_button(
             label="📥 Download Pivot Table as CSV",
             data=csv,
-            file_name=f"sales_pivot_{selected_supervisor}_{filename_date}.csv",
+            file_name=f"sales_pivot_{supervisor_name}_{filename_date}.csv",
             mime="text/csv"
         )
         
@@ -279,6 +275,7 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
 
 
 
