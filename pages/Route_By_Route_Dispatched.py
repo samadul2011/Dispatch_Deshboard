@@ -46,18 +46,22 @@ st.success("Connected to DuckDB!")
 # ---- CREATE TABLE (if not exists) ----
 def ensure_join_table(con):
     """Create or replace ProductsWithCode if it doesn't exist."""
-    con.execute("""
-        CREATE OR REPLACE TABLE ProductsWithCode AS
-        SELECT 
-            s.Code,
-            s.Qty,
-            s.Sales_Date,
-            s.Route,
-            p.Description AS Description
-        FROM Sales s
-        INNER JOIN Products p
-            ON s.Code = p.Code;
-    """)
+    try:
+        con.execute("""
+            CREATE OR REPLACE TABLE ProductsWithCode AS
+            SELECT 
+                s.Code,
+                s.Qty,
+                s.Sales_Date,
+                s.Route,
+                p.Description AS Description
+            FROM Sales s
+            INNER JOIN Products p
+                ON s.Code = p.Code;
+        """)
+        st.success("ProductsWithCode table created successfully!")
+    except Exception as e:
+        st.error(f"Error creating table: {e}")
 
 # Initialize the table
 ensure_join_table(con)
@@ -73,7 +77,7 @@ def load_data(start_date=None, end_date=None, code_filter=None):
             Description,
             Qty,
             Route,
-            Sales_Date
+            CAST(Sales_Date AS DATE) as Sales_Date
         FROM ProductsWithCode
         WHERE 1=1
     """
@@ -89,7 +93,17 @@ def load_data(start_date=None, end_date=None, code_filter=None):
     
     query += " ORDER BY CAST(Sales_Date AS DATE) DESC"
     
-    return con.execute(query, params).fetchdf()
+    try:
+        df = con.execute(query, params).fetchdf()
+        
+        # Ensure Qty column is numeric
+        if 'Qty' in df.columns:
+            df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0)
+        
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()
 
 # ---- SIDEBAR FILTERS ----
 st.sidebar.header("Filter Options")
@@ -110,21 +124,29 @@ st.subheader("Filtered Results")
 st.write(f"Records found: {len(df)}")
 
 if not df.empty:
-    # Format the dataframe for better display
-    display_df = df.copy()
-    if 'Sales_Date' in display_df.columns:
-        display_df['Sales_Date'] = pd.to_datetime(display_df['Sales_Date']).dt.date
-    
-    st.dataframe(display_df, use_container_width=True)
-    
-    # Display summary metrics
+    # Display summary metrics with safe calculations
     col1, col2, col3 = st.columns(3)
+    
     with col1:
-        st.metric("Total Quantity", f"{df['Qty'].sum():,.0f}")
+        if 'Qty' in df.columns:
+            total_qty = df['Qty'].sum()
+            st.metric("Total Quantity", f"{total_qty:,.0f}")
+        else:
+            st.metric("Total Quantity", "N/A")
+    
     with col2:
-        st.metric("Unique Products", df['Code'].nunique())
+        if 'Code' in df.columns:
+            st.metric("Unique Products", df['Code'].nunique())
+        else:
+            st.metric("Unique Products", "N/A")
+    
     with col3:
-        st.metric("Unique Routes", df['Route'].nunique())
+        if 'Route' in df.columns:
+            st.metric("Unique Routes", df['Route'].nunique())
+        else:
+            st.metric("Unique Routes", "N/A")
+    
+    st.dataframe(df, use_container_width=True)
 else:
     st.info("No records found for the selected filters.")
 
@@ -146,7 +168,7 @@ try:
         SELECT 
             Code, 
             Qty, 
-            Sales_Date, 
+            CAST(Sales_Date AS DATE) as Sales_Date, 
             Route, 
             Description 
         FROM ProductsWithCode 
@@ -154,14 +176,39 @@ try:
         LIMIT 10
     """).fetchdf()
     
-    # Format dates for display
-    if 'Sales_Date' in df_default.columns:
-        df_default['Sales_Date'] = pd.to_datetime(df_default['Sales_Date']).dt.date
+    # Ensure Qty is numeric in preview too
+    if 'Qty' in df_default.columns:
+        df_default['Qty'] = pd.to_numeric(df_default['Qty'], errors='coerce').fillna(0)
     
-    st.dataframe(df_default, use_container_width=True)
-    
+    if not df_default.empty:
+        st.dataframe(df_default, use_container_width=True)
+    else:
+        st.info("No data available for preview.")
+        
 except Exception as e:
     st.error(f"Error loading preview: {e}")
+
+# ---- DEBUG INFORMATION (collapsible) ----
+with st.expander("🔧 Debug Information"):
+    st.write("### Database Tables")
+    try:
+        tables = con.execute("SHOW TABLES").fetchdf()
+        st.write(tables)
+    except Exception as e:
+        st.write(f"Error fetching tables: {e}")
+    
+    st.write("### ProductsWithCode Columns")
+    try:
+        columns = con.execute("PRAGMA table_info(ProductsWithCode)").fetchdf()
+        st.write(columns)
+    except Exception as e:
+        st.write(f"Error fetching columns: {e}")
+    
+    if not df.empty:
+        st.write("### Data Sample")
+        st.write(df.head())
+        st.write("### Data Types")
+        st.write(df.dtypes)
 # Sidebar Navigation - WITH ACTUAL PAGE SWITCHING
 st.sidebar.title("🌐 Navigation")
 st.sidebar.markdown("### Select a Dashboard Page")
