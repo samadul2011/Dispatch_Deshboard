@@ -2,6 +2,7 @@ import os
 import requests
 import duckdb
 import streamlit as st
+import pandas as pd
 
 @st.cache_resource
 def get_duckdb():
@@ -278,6 +279,7 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
 
 
 
