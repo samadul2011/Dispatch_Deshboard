@@ -52,7 +52,7 @@ def ensure_join_table(con):
             SELECT 
                 s.Code,
                 s.Qty,
-                s.Sales_Date,
+                CAST(s.Sales_Date AS DATE) as Sales_Date,
                 s.Route,
                 p.Description AS Description
             FROM Sales s
@@ -84,14 +84,14 @@ def load_data(start_date=None, end_date=None, code_filter=None):
     params = []
     
     if start_date and end_date:
-        query += " AND CAST(Sales_Date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)"
+        query += " AND Sales_Date BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)"
         params += [start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')]
     
     if code_filter:
         query += " AND LOWER(Code) LIKE LOWER(?)"
         params.append(f"%{code_filter}%")
     
-    query += " ORDER BY CAST(Sales_Date AS DATE) DESC"
+    query += " ORDER BY Sales_Date DESC"
     
     try:
         df = con.execute(query, params).fetchdf()
@@ -99,6 +99,10 @@ def load_data(start_date=None, end_date=None, code_filter=None):
         # Ensure Qty column is numeric
         if 'Qty' in df.columns:
             df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0)
+        
+        # Ensure Sales_Date is properly formatted as date without time
+        if 'Sales_Date' in df.columns:
+            df['Sales_Date'] = pd.to_datetime(df['Sales_Date']).dt.date
         
         return df
     except Exception as e:
@@ -152,7 +156,9 @@ else:
 
 # ---- DOWNLOAD OPTION ----
 if not df.empty:
-    csv = df.to_csv(index=False).encode("utf-8")
+    # Create a copy for download to preserve original date formatting
+    download_df = df.copy()
+    csv = download_df.to_csv(index=False).encode("utf-8")
     st.download_button(
         label="⬇️ Download CSV",
         data=csv,
@@ -172,13 +178,17 @@ try:
             Route, 
             Description 
         FROM ProductsWithCode 
-        ORDER BY CAST(Sales_Date AS DATE) DESC 
+        ORDER BY Sales_Date DESC 
         LIMIT 10
     """).fetchdf()
     
     # Ensure Qty is numeric in preview too
     if 'Qty' in df_default.columns:
         df_default['Qty'] = pd.to_numeric(df_default['Qty'], errors='coerce').fillna(0)
+    
+    # Ensure Sales_Date is properly formatted as date without time
+    if 'Sales_Date' in df_default.columns:
+        df_default['Sales_Date'] = pd.to_datetime(df_default['Sales_Date']).dt.date
     
     if not df_default.empty:
         st.dataframe(df_default, use_container_width=True)
@@ -209,6 +219,8 @@ with st.expander("🔧 Debug Information"):
         st.write(df.head())
         st.write("### Data Types")
         st.write(df.dtypes)
+    
+    
 # Sidebar Navigation - WITH ACTUAL PAGE SWITCHING
 st.sidebar.title("🌐 Navigation")
 st.sidebar.markdown("### Select a Dashboard Page")
