@@ -3,7 +3,7 @@ import duckdb
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-import urllib.request
+import requests
 
 # Page configuration
 st.set_page_config(page_title="Orders vs Sales Difference", layout="wide")
@@ -20,37 +20,26 @@ color = "Blue"
 st.markdown(f"<h1 style='color: {color};'>📊 Orders vs Sales Difference Analysis</h1>", unsafe_allow_html=True)
 st.markdown("Developed by :red[Samad Hoque]. Analyze the difference between Orders and Sales quantities over a selected date range.")
 
-# Database configuration
-GITHUB_DB_URL = "https://raw.githubusercontent.com/samadul2011/Dispatch_Deshboard/main/disptach.duckdb"
-LOCAL_DB_PATH = "disptach.duckdb"
-
-# ---- DOWNLOAD DATABASE FROM GITHUB ----
+# ---- DATABASE CONNECTION (Same as your working code) ----
 @st.cache_resource
-def download_database():
-    """Download database from GitHub if not already present."""
-    if not os.path.exists(LOCAL_DB_PATH):
-        with st.spinner("Downloading database from GitHub..."):
-            try:
-                urllib.request.urlretrieve(GITHUB_DB_URL, LOCAL_DB_PATH)
-                st.success("Database downloaded successfully!")
-            except Exception as e:
-                st.error(f"Error downloading database: {e}")
-                return None
-    return LOCAL_DB_PATH
+def get_duckdb():
+    db_filename = "dispatch.duckdb"
+    url = "https://drive.google.com/uc?export=download&id=1tYt3Z5McuQYifmNImZyACPHW9C9ju7L4"
 
-# Download the database
-DB_PATH = download_database()
+    if not os.path.exists(db_filename):
+        st.write("Downloading database from Google Drive...")
+        resp = requests.get(url, allow_redirects=True)
+        if resp.status_code != 200:
+            st.error(f"Failed to download database. Status code = {resp.status_code}")
+            st.stop()
+        with open(db_filename, "wb") as f:
+            f.write(resp.content)
 
-# ---- CACHED CONNECTION ----
-@st.cache_resource
-def get_connection():
-    """Keep a single DuckDB connection alive for the Streamlit session."""
-    if DB_PATH:
-        con = duckdb.connect(DB_PATH)
-        return con
-    return None
+    return duckdb.connect(db_filename)
 
-con = get_connection()
+# Get connection
+con = get_duckdb()
+st.success("Connected to DuckDB!")
 
 # Get date range from the database
 @st.cache_data
@@ -149,28 +138,28 @@ try:
     # Query data with date filter
     @st.cache_data
     def fetch_data(start, end):
-        sales_query = f"""
+        sales_query = """
         SELECT
             Code,
             CAST(Sales_Date AS DATE) AS Sales_Date,
             SUM(CAST(Qty AS INTEGER)) AS Total
         FROM Sales
-        WHERE CAST(Sales_Date AS DATE) BETWEEN '{start}' AND '{end}'
-        GROUP BY Code, Sales_Date
+        WHERE CAST(Sales_Date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)
+        GROUP BY Code, CAST(Sales_Date AS DATE)
         """
         
-        orders_query = f"""
+        orders_query = """
         SELECT
             Code,
             CAST(Sales_Date AS DATE) AS Sales_Date,
             SUM(CAST(Qty AS INTEGER)) AS Total
         FROM Orders
-        WHERE CAST(Sales_Date AS DATE) BETWEEN '{start}' AND '{end}'
-        GROUP BY Code, Sales_Date
+        WHERE CAST(Sales_Date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)
+        GROUP BY Code, CAST(Sales_Date AS DATE)
         """
         
-        sales_df = con.execute(sales_query).fetchdf()
-        orders_df = con.execute(orders_query).fetchdf()
+        sales_df = con.execute(sales_query, [start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')]).fetchdf()
+        orders_df = con.execute(orders_query, [start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')]).fetchdf()
         
         return sales_df, orders_df
     
@@ -206,6 +195,9 @@ try:
     display_df['Orders Qty'] = display_df['Orders Qty'].astype(int)
     display_df['Sales Qty'] = display_df['Sales Qty'].astype(int)
     display_df['Difference'] = display_df['Difference'].astype(int)
+    
+    # Ensure dates are displayed without time
+    display_df['Date'] = pd.to_datetime(display_df['Date']).dt.date
     
     # Main content
     st.subheader("📊 Difference Analysis (Sales - Orders)")
@@ -378,3 +370,4 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
