@@ -3,99 +3,132 @@ import pandas as pd
 import duckdb
 import plotly.express as px
 import os
+import requests
 
-# Connect to DuckDB
-#conn = duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
-import duckdb
-import os
+# Page configuration
+st.set_page_config(page_title="Sales Sunburst Chart", layout="wide")
 
-# Old (absolute, environment-specific):
-# db_path = "/workspaces/Dispatch_Deshboard/disptach.duckdb"
+# ---- DATABASE CONNECTION (Same as your working code) ----
+@st.cache_resource
+def get_duckdb():
+    db_filename = "dispatch.duckdb"
+    url = "https://drive.google.com/uc?export=download&id=1tYt3Z5McuQYifmNImZyACPHW9C9ju7L4"
 
-# New (relative, portable):
-db_path = os.path.join(os.path.dirname(__file__), "..", "disptach.duckdb")  # Adjust based on your file structure
-# Or simply: db_path = "disptach.duckdb" if it's in the repo root
+    if not os.path.exists(db_filename):
+        st.write("Downloading database from Google Drive...")
+        resp = requests.get(url, allow_redirects=True)
+        if resp.status_code != 200:
+            st.error(f"Failed to download database. Status code = {resp.status_code}")
+            st.stop()
+        with open(db_filename, "wb") as f:
+            f.write(resp.content)
 
-conn = duckdb.connect(db_path)
-# If the file doesn't exist yet, DuckDB will create it on first write:
-# con.execute("CREATE TABLE IF NOT EXISTS your_table (...)")
+    return duckdb.connect(db_filename)
 
-# Load Sales with Sales_Date
-sales = pd.read_sql("SELECT Code, Route, Qty, Sales_Date FROM Sales", conn)
+# Get connection
+conn = get_duckdb()
+st.success("Connected to DuckDB!")
 
-# Load Product mapping
-Products = pd.read_sql("SELECT Code, Category3, Category2 FROM Products", conn)
+# Load data with caching
+@st.cache_data
+def load_data():
+    sales = pd.read_sql("SELECT Code, Route, Qty, Sales_Date FROM Sales", conn)
+    Products = pd.read_sql("SELECT Code, Category3, Category2 FROM Products", conn)
+    df = sales.merge(Products, on="Code", how="left")
+    df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce')
+    df['Sales_Date'] = pd.to_datetime(df['Sales_Date'])
+    return df
 
-# Join (like SQL LEFT JOIN)
-df = sales.merge(Products, on="Code", how="left")
+# Load initial data
+df = load_data()
 
-# Convert Qty to numeric (in case it's stored as text)
-df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce')
+# --- 🔹 Streamlit Date Filter ---
+st.sidebar.header("Filter Options")
 
-# Convert Sales_Date to datetime if it's not already
-df['Sales_Date'] = pd.to_datetime(df['Sales_Date'])
+# Get min & max date from your data
+min_date = df['Sales_Date'].min().date()
+max_date = df['Sales_Date'].max().date()
 
-# Close the database connection
-conn.close()
+# Date range selector
+start_date, end_date = st.sidebar.date_input(
+    "Select Date Range",
+    [min_date, max_date],
+    min_value=min_date,
+    max_value=max_date
+)
 
-# Aggregate data by Category3, Category2 and Code
-sunburst_data = df.groupby(['Category3', 'Category2', 'Code']).agg({
-    'Qty': 'sum'
-}).reset_index()
+# Apply date filter
+if len(start_date) == 2:  # If user selects a range
+    start_date, end_date = start_date
+else:
+    # If only one date selected, use that date for both
+    end_date = start_date
 
-# Remove rows with missing Category3 or Category2
-sunburst_data = sunburst_data.dropna(subset=['Category3', 'Category2'])
+mask = (df['Sales_Date'].dt.date >= start_date) & (df['Sales_Date'].dt.date <= end_date)
+filtered_df = df.loc[mask]
 
-# Get top 20 products for each Category2
-def get_top_products_per_category(data, n=20):
-    top_products = []
-    for category2 in data['Category2'].unique():
-        category_data = data[data['Category2'] == category2]
-        top_category_products = category_data.nlargest(n, 'Qty')
-        top_products.append(top_category_products)
-    
-    return pd.concat(top_products, ignore_index=True)
+# Process data for sunburst chart
+@st.cache_data
+def process_sunburst_data(_df):
+    sunburst_data = _df.groupby(['Category3', 'Category2', 'Code']).agg({
+        'Qty': 'sum'
+    }).reset_index()
 
-# Get top 20 products per Category2
-top_products_data = get_top_products_per_category(sunburst_data, n=20)
+    # Remove rows with missing Category3 or Category2
+    sunburst_data = sunburst_data.dropna(subset=['Category3', 'Category2'])
 
-# Create hierarchical structure for sunburst
-# Structure: Root -> Category3 -> Category2 -> Code
-sunburst_final = []
+    # Get top 20 products for each Category2
+    def get_top_products_per_category(data, n=20):
+        top_products = []
+        for category2 in data['Category2'].unique():
+            category_data = data[data['Category2'] == category2]
+            top_category_products = category_data.nlargest(n, 'Qty')
+            top_products.append(top_category_products)
+        
+        return pd.concat(top_products, ignore_index=True)
 
-# Add Category3 level (top parent nodes)
-for category3 in top_products_data['Category3'].unique():
-    category3_total = top_products_data[top_products_data['Category3'] == category3]['Qty'].sum()
-    sunburst_final.append({
-        'ids': category3,
-        'labels': category3,
-        'parents': '',
-        'values': category3_total
-    })
+    # Get top 20 products per Category2
+    top_products_data = get_top_products_per_category(sunburst_data, n=20)
 
-# Add Category2 level (middle nodes)
-for category3 in top_products_data['Category3'].unique():
-    category3_data = top_products_data[top_products_data['Category3'] == category3]
-    for category2 in category3_data['Category2'].unique():
-        category2_total = category3_data[category3_data['Category2'] == category2]['Qty'].sum()
+    # Create hierarchical structure for sunburst
+    # Structure: Root -> Category3 -> Category2 -> Code
+    sunburst_final = []
+
+    # Add Category3 level (top parent nodes)
+    for category3 in top_products_data['Category3'].unique():
+        category3_total = top_products_data[top_products_data['Category3'] == category3]['Qty'].sum()
         sunburst_final.append({
-            'ids': f"{category3}_{category2}",
-            'labels': category2,
-            'parents': category3,
-            'values': category2_total
+            'ids': category3,
+            'labels': category3,
+            'parents': '',
+            'values': category3_total
         })
 
-# Add Code level (leaf nodes)
-for _, row in top_products_data.iterrows():
-    sunburst_final.append({
-        'ids': f"{row['Category3']}_{row['Category2']}_{row['Code']}",
-        'labels': row['Code'],
-        'parents': f"{row['Category3']}_{row['Category2']}",
-        'values': row['Qty']
-    })
+    # Add Category2 level (middle nodes)
+    for category3 in top_products_data['Category3'].unique():
+        category3_data = top_products_data[top_products_data['Category3'] == category3]
+        for category2 in category3_data['Category2'].unique():
+            category2_total = category3_data[category3_data['Category2'] == category2]['Qty'].sum()
+            sunburst_final.append({
+                'ids': f"{category3}_{category2}",
+                'labels': category2,
+                'parents': category3,
+                'values': category2_total
+            })
 
-# Convert to DataFrame
-sunburst_df = pd.DataFrame(sunburst_final)
+    # Add Code level (leaf nodes)
+    for _, row in top_products_data.iterrows():
+        sunburst_final.append({
+            'ids': f"{row['Category3']}_{row['Category2']}_{row['Code']}",
+            'labels': row['Code'],
+            'parents': f"{row['Category3']}_{row['Category2']}",
+            'values': row['Qty']
+        })
+
+    return pd.DataFrame(sunburst_final), top_products_data
+
+# Process the filtered data
+sunburst_df, top_products_data = process_sunburst_data(filtered_df)
 
 # Create the sunburst chart
 fig = px.sunburst(
@@ -104,7 +137,7 @@ fig = px.sunburst(
     names='labels',
     parents='parents',
     values='values',
-    title='Sales Distribution: Category3 → Category2 → Top 20 Products by Quantity',
+    title=f'Sales Distribution: Category3 → Category2 → Top 20 Products by Quantity ({start_date} to {end_date})',
     color='values',
     color_continuous_scale='Viridis'
 )
@@ -125,12 +158,12 @@ fig.update_traces(
 )
 
 # Display in Streamlit
-st.title("Sales Data Sunburst Chart")
-st.write("This chart shows the sales distribution by Category3, Category2, and the top 20 products within each Category2.")
+st.title("📊 Sales Data Sunburst Chart")
+st.write(f"This chart shows the sales distribution by Category3, Category2, and the top 20 products within each Category2 for the selected date range.")
 
 # Show some statistics
 st.subheader("Data Summary")
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.metric("Total Categories", len(top_products_data['Category3'].unique()))
@@ -140,6 +173,9 @@ with col2:
 
 with col3:
     st.metric("Total Quantity", f"{top_products_data['Qty'].sum():,.0f}")
+
+with col4:
+    st.metric("Date Range", f"{start_date} to {end_date}")
 
 # Display the chart
 st.plotly_chart(fig, use_container_width=True)
@@ -161,7 +197,8 @@ if st.checkbox("Show Top Products Data"):
             "Code": "Product Code",
             "Qty": "Total Quantity"
         },
-        hide_index=True
+        hide_index=True,
+        use_container_width=True
     )
 
 # Optional: Category-wise breakdown
@@ -173,38 +210,20 @@ if st.checkbox("Show Category Breakdown"):
     category_summary = category_summary.sort_values('Total Quantity', ascending=False)
     category_summary['Total Quantity'] = category_summary['Total Quantity'].apply(lambda x: f"{x:,.0f}")
     
-    st.dataframe(category_summary, hide_index=True)
+    st.dataframe(category_summary, hide_index=True, use_container_width=True)
 
-print("Sunburst chart created successfully!")
-print(f"Total categories: {len(top_products_data['Category3'].unique())}")
-print(f"Total products displayed: {len(top_products_data)}")
-print(f"Data shape: {top_products_data.shape}")
+# Download option
+if st.button("📥 Download Processed Data"):
+    csv = top_products_data.to_csv(index=False)
+    st.download_button(
+        label="Download CSV",
+        data=csv,
+        file_name=f"sunburst_data_{start_date}_{end_date}.csv",
+        mime="text/csv"
+    )
 
-df['Sales_Date'] = pd.to_datetime(df['Sales_Date'])
-
-# --- 🔹 Streamlit Date Filter ---
-st.sidebar.header("Filter Options")
-
-# Get min & max date from your data
-min_date = df['Sales_Date'].min().date()
-max_date = df['Sales_Date'].max().date()
-
-# Date range selector
-start_date, end_date = st.sidebar.date_input(
-    "Select Date Range",
-    [min_date, max_date],
-    min_value=min_date,
-    max_value=max_date
-)
-
-# Apply date filter
-if isinstance(start_date, list):  # If user selects a range
-    start_date, end_date = start_date[0], start_date[1]
-
-mask = (df['Sales_Date'].dt.date >= start_date) & (df['Sales_Date'].dt.date <= end_date)
-
-df = df.loc[mask]
-
+# Close connection (optional since it's cached)
+# conn.close()
 # Sidebar Navigation - WITH ACTUAL PAGE SWITCHING
 st.sidebar.title("🌐 Navigation")
 st.sidebar.markdown("### Select a Dashboard Page")
@@ -284,4 +303,5 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
 
