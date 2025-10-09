@@ -4,31 +4,33 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
 import os
+import requests
 
 # Page configuration
 st.set_page_config(page_title="Sales Dashboard", layout="wide")
 
 st.title("📊 Sales Dashboard")
 
-# Connect to DuckDB
+# ---- DATABASE CONNECTION (Same as your working code) ----
 @st.cache_resource
-def get_connection():
-    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
-    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
-    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
-    
-    # Option 2: Relative to the script's directory (if DB is in a subfolder)
-    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
-    
-    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
-    if not os.path.exists(db_path):
-        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
-    
-    return duckdb.connect(db_path)
+def get_duckdb():
+    db_filename = "dispatch.duckdb"
+    url = "https://drive.google.com/uc?export=download&id=1tYt3Z5McuQYifmNImZyACPHW9C9ju7L4"
 
-con = get_connection()
-# If the file doesn't exist yet, DuckDB will create it on first write:
-# con.execute("CREATE TABLE IF NOT EXISTS your_table (...)")
+    if not os.path.exists(db_filename):
+        st.write("Downloading database from Google Drive...")
+        resp = requests.get(url, allow_redirects=True)
+        if resp.status_code != 200:
+            st.error(f"Failed to download database. Status code = {resp.status_code}")
+            st.stop()
+        with open(db_filename, "wb") as f:
+            f.write(resp.content)
+
+    return duckdb.connect(db_filename)
+
+# Get connection
+con = get_duckdb()
+st.success("Connected to DuckDB!")
 
 # Get date range from data
 @st.cache_data
@@ -70,20 +72,31 @@ search_code = st.sidebar.text_input("🔍 Search Code", "")
 # Fetch data based on filters
 @st.cache_data
 def load_data(start, end, search=""):
-    search_condition = f"AND Code LIKE '%{search}%'" if search else ""
-    
-    query = f"""
-        SELECT 
-            Code,
-            CAST(Sales_Date AS DATE) AS Sales_Date,
-            SUM(CAST(Qty AS INTEGER)) AS Qty
-        FROM Sales
-        WHERE CAST(Sales_Date AS DATE) BETWEEN '{start}' AND '{end}'
-        {search_condition}
-        GROUP BY Code, Sales_Date
-        ORDER BY Sales_Date DESC, Code
-    """
-    return con.execute(query).df()
+    if search:
+        query = """
+            SELECT 
+                Code,
+                CAST(Sales_Date AS DATE) AS Sales_Date,
+                SUM(CAST(Qty AS INTEGER)) AS Qty
+            FROM Sales
+            WHERE CAST(Sales_Date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)
+            AND Code LIKE ?
+            GROUP BY Code, CAST(Sales_Date AS DATE)
+            ORDER BY CAST(Sales_Date AS DATE) DESC, Code
+        """
+        return con.execute(query, [start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), f'%{search}%']).df()
+    else:
+        query = """
+            SELECT 
+                Code,
+                CAST(Sales_Date AS DATE) AS Sales_Date,
+                SUM(CAST(Qty AS INTEGER)) AS Qty
+            FROM Sales
+            WHERE CAST(Sales_Date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)
+            GROUP BY Code, CAST(Sales_Date AS DATE)
+            ORDER BY CAST(Sales_Date AS DATE) DESC, Code
+        """
+        return con.execute(query, [start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')]).df()
 
 # Load data
 try:
@@ -177,12 +190,16 @@ try:
     
     if view_option == "Summary by Code":
         st.dataframe(
-            summary_df.style.format({
-                'Total_Qty': '{:,.0f}',
-                'Transaction_Count': '{:.0f}'
-            }),
+            summary_df,
             use_container_width=True,
-            height=400
+            height=400,
+            column_config={
+                "Code": st.column_config.TextColumn("Product Code"),
+                "Total_Qty": st.column_config.NumberColumn("Total Quantity", format="%d"),
+                "First_Date": st.column_config.DateColumn("First Date"),
+                "Last_Date": st.column_config.DateColumn("Last Date"),
+                "Transaction_Count": st.column_config.NumberColumn("Transaction Count", format="%d")
+            }
         )
         
         # Download button
@@ -194,10 +211,19 @@ try:
             mime="text/csv"
         )
     else:
+        # Format the detailed dataframe for display
+        display_df = df.copy()
+        display_df['Sales_Date'] = pd.to_datetime(display_df['Sales_Date']).dt.date
+        
         st.dataframe(
-            df.style.format({'Qty': '{:,.0f}'}),
+            display_df,
             use_container_width=True,
-            height=400
+            height=400,
+            column_config={
+                "Code": st.column_config.TextColumn("Product Code"),
+                "Sales_Date": st.column_config.DateColumn("Sales Date"),
+                "Qty": st.column_config.NumberColumn("Quantity", format="%d")
+            }
         )
         
         # Download button
@@ -213,6 +239,8 @@ except Exception as e:
     st.error(f"Error loading data: {e}")
     st.info("Please check your database connection and query.")
 
+# Close connection (optional since it's cached)
+# con.close()
 # Footer
 st.sidebar.markdown("---")
 st.sidebar.info(f"Data range: {min_date} to {max_date}")
@@ -296,3 +324,4 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
