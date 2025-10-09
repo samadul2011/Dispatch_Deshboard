@@ -2,6 +2,28 @@ import streamlit as st
 import duckdb
 import pandas as pd
 import os
+import requests 
+
+    db_filename = "dispatch.duckdb"
+    share_url = "https://atyabfoodindustries-my.sharepoint.com/:u:/g/personal/dispatch_atyab_om/EZ4DDYzzMl1CjXBRh00Nq6IBk7pXmNP8QbKwlkARdE1x_Q?e=h646tk"
+
+    # Try constructing direct download URL
+    token = base64.urlsafe_b64encode(share_url.encode()).decode().rstrip("=")
+    direct_url = f"https://graph.microsoft.com/v1.0/shares/{token}/root/content"
+
+    if not os.path.exists(db_path):
+        st.write("Downloading database...")
+        resp = requests.get(direct_url, allow_redirects=True)
+        if resp.status_code != 200:
+            st.error(f"Failed to download DB: {resp.status_code}")
+            st.stop()
+        with open(db_path, "wb") as f:
+            f.write(resp.content)
+
+    return duckdb.connect(db_path)
+
+con = get_duckdb()
+st.success("Connected to DuckDB!")
 
 
 # Page configuration
@@ -11,25 +33,25 @@ st.markdown(f"<h1 style='color: {st.color};'>Dispatched Note</h1>", unsafe_allow
 st.subheader("Developed by :green[Samadul Hoque]")
 
 # Database connection
-@st.cache_resource
-def get_connection():
+#@st.cache_resource
+#def get_connection():
     # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
-    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
-    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
+    #db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
+   # db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
     
     # Option 2: Relative to the script's directory (if DB is in a subfolder)
     # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
     
     # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
-    if not os.path.exists(db_path):
-        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
+   # if not os.path.exists(db_path):
+       # print(f"Warning: DB file not found at {db_path}. Creating a new one...")
     
-    return duckdb.connect(db_path)
+    #return duckdb.connect(db_path)
 
 # Load and prepare data
-@st.cache_data
-def load_data():
-    con = get_connection()
+#@st.cache_data
+#def load_data():
+    #con = get_connection()
     
     # Create the joined table
     con.execute("""
@@ -257,6 +279,7 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
 
 
 
