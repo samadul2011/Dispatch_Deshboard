@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
+import requests
 
 # Page configuration
 st.set_page_config(page_title="Sales Oscilloscope", layout="wide")
@@ -11,24 +12,26 @@ st.set_page_config(page_title="Sales Oscilloscope", layout="wide")
 # Title
 st.title("📊 Sales Oscilloscope Dashboard - Animated Chart")
 
-# Connect to DuckDB
+# ---- DATABASE CONNECTION (Same as your working code) ----
 @st.cache_resource
-#def get_connection():
-    #return duckdb.connect("/workspaces/Dispatch_Deshboard/disptach.duckdb")
-def get_connection():
-    # Option 1: Relative to the repo root (simplest, assumes DB file is in root)
-    db_filename = "disptach.duckdb"  # Fix typo to "dispatch.duckdb" if needed
-    db_path = os.path.join(os.getcwd(), db_filename)  # Full path from current working dir
-    
-    # Option 2: Relative to the script's directory (if DB is in a subfolder)
-    # db_path = os.path.join(os.path.dirname(__file__), "..", db_filename)  # e.g., if script is in /pages/
-    
-    # Ensure the file exists or create it (DuckDB auto-creates on connect if writable)
-    if not os.path.exists(db_path):
-        print(f"Warning: DB file not found at {db_path}. Creating a new one...")
-    
-    return duckdb.connect(db_path)
-con = get_connection()
+def get_duckdb():
+    db_filename = "dispatch.duckdb"
+    url = "https://drive.google.com/uc?export=download&id=1tYt3Z5McuQYifmNImZyACPHW9C9ju7L4"
+
+    if not os.path.exists(db_filename):
+        st.write("Downloading database from Google Drive...")
+        resp = requests.get(url, allow_redirects=True)
+        if resp.status_code != 200:
+            st.error(f"Failed to download database. Status code = {resp.status_code}")
+            st.stop()
+        with open(db_filename, "wb") as f:
+            f.write(resp.content)
+
+    return duckdb.connect(db_filename)
+
+# Get connection
+con = get_duckdb()
+st.success("Connected to DuckDB!")
 
 # Get date range from database
 @st.cache_data
@@ -78,30 +81,30 @@ try:
     # Query data based on selected date range
     @st.cache_data
     def load_data(start, end):
-        query = f"""
+        query = """
         SELECT 
             CAST(Sales_Date AS DATE) AS Sales_Date,
             SUM(CAST(Qty AS INTEGER)) AS Qty
         FROM Sales
-        WHERE CAST(Sales_Date AS DATE) BETWEEN '{start}' AND '{end}'
-        GROUP BY Sales_Date
-        ORDER BY Sales_Date ASC
+        WHERE CAST(Sales_Date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)
+        GROUP BY CAST(Sales_Date AS DATE)
+        ORDER BY CAST(Sales_Date AS DATE) ASC
         """
-        return con.execute(query).df()
+        return con.execute(query, [start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')]).df()
     
     # Query monthly data
     @st.cache_data
     def load_monthly_data(start, end):
-        query = f"""
+        query = """
         SELECT 
             DATE_TRUNC('month', CAST(Sales_Date AS DATE)) AS Month,
             SUM(CAST(Qty AS INTEGER)) AS Qty
         FROM Sales
-        WHERE CAST(Sales_Date AS DATE) BETWEEN '{start}' AND '{end}'
+        WHERE CAST(Sales_Date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)
         GROUP BY DATE_TRUNC('month', CAST(Sales_Date AS DATE))
         ORDER BY Month ASC
         """
-        df = con.execute(query).df()
+        df = con.execute(query, [start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')]).df()
         df['Month_Label'] = pd.to_datetime(df['Month']).dt.strftime('%b %Y')
         return df
     
@@ -460,9 +463,10 @@ try:
 
 except Exception as e:
     st.error(f"❌ Error: {str(e)}")
-    st.info("Please ensure the database file exists at the specified path and contains the Sales table.")
+    st.info("Please ensure the database file exists and contains the required tables.")
 
 finally:
+    # Connection is cached, no need to close manually
     pass
 # Sidebar Navigation - WITH ACTUAL PAGE SWITCHING
 st.sidebar.title("🌐 Navigation")
@@ -543,3 +547,4 @@ if st.sidebar.button("🔄 Refresh All Data"):
 
 st.sidebar.markdown("### 📞 Support")
 st.sidebar.info("For technical support or feature requests, please contact the Dispatch Supervisor.")
+
