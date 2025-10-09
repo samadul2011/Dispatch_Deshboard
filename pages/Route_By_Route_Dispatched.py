@@ -18,13 +18,17 @@ with col2:
 st.title("🔍 Sales Data Viewer")
 
 # ---- DATABASE PATH ---- 
-# GitHub raw content URL for the database file
+# Google Drive download URL
 GITHUB_DB_URL = "https://drive.google.com/uc?export=download&id=1tYt3Z5McuQYifmNImZyACPHW9C9ju7L4"
-LOCAL_DB_PATH = "disptach.duckdb"
+LOCAL_DB_PATH = "dispatch.duckdb"
 
-# ---- DOWNLOAD DATABASE FROM GITHUB ----
+# ---- DOWNLOAD DATABASE FROM GOOGLE DRIVE ----
 @st.cache_resource
- if not os.path.exists(db_filename):
+def get_duckdb():
+    db_filename = "dispatch.duckdb"
+    url = "https://drive.google.com/uc?export=download&id=1tYt3Z5McuQYifmNImZyACPHW9C9ju7L4"
+
+    if not os.path.exists(db_filename):
         st.write("Downloading database from Google Drive...")
         resp = requests.get(url, allow_redirects=True)
         if resp.status_code != 200:
@@ -36,20 +40,8 @@ LOCAL_DB_PATH = "disptach.duckdb"
     return duckdb.connect(db_filename)
 
 # Get connection
-DB_PATH = get_duckdb()
+con = get_duckdb()
 st.success("Connected to DuckDB!")
-
-
-
-
-# ---- CACHED CONNECTION ----
-@st.cache_resource
-def get_connection():
-    """Keep a single DuckDB connection alive for the Streamlit session."""
-    if DB_PATH:
-        con = duckdb.connect(DB_PATH)
-        return con
-    return None
 
 # ---- CREATE TABLE (if not exists) ----
 def ensure_join_table(con):
@@ -67,15 +59,13 @@ def ensure_join_table(con):
             ON s.Code = p.Code;
     """)
 
+# Initialize the table
+ensure_join_table(con)
+
 # ---- LOAD FILTERED DATA ----
 @st.cache_data
 def load_data(start_date=None, end_date=None, code_filter=None):
     """Load filtered data safely."""
-    con = get_connection()
-    if not con:
-        return pd.DataFrame()
-    
-    ensure_join_table(con)
     
     query = """
         SELECT 
@@ -90,8 +80,8 @@ def load_data(start_date=None, end_date=None, code_filter=None):
     params = []
     
     if start_date and end_date:
-        query += " AND CAST(Sales_Date AS DATE) BETWEEN ? AND ?"
-        params += [str(start_date), str(end_date)]
+        query += " AND CAST(Sales_Date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)"
+        params += [start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')]
     
     if code_filter:
         query += " AND LOWER(Code) LIKE LOWER(?)"
@@ -120,7 +110,21 @@ st.subheader("Filtered Results")
 st.write(f"Records found: {len(df)}")
 
 if not df.empty:
-    st.dataframe(df, use_container_width=True)
+    # Format the dataframe for better display
+    display_df = df.copy()
+    if 'Sales_Date' in display_df.columns:
+        display_df['Sales_Date'] = pd.to_datetime(display_df['Sales_Date']).dt.date
+    
+    st.dataframe(display_df, use_container_width=True)
+    
+    # Display summary metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Quantity", f"{df['Qty'].sum():,.0f}")
+    with col2:
+        st.metric("Unique Products", df['Code'].nunique())
+    with col3:
+        st.metric("Unique Routes", df['Route'].nunique())
 else:
     st.info("No records found for the selected filters.")
 
@@ -130,23 +134,32 @@ if not df.empty:
     st.download_button(
         label="⬇️ Download CSV",
         data=csv,
-        file_name="filtered_sales.csv",
+        file_name=f"filtered_sales_{start_date}_{end_date}.csv",
         mime="text/csv",
     )
 
-# ---- DEFAULT PREVIEW (optional) ----
+# ---- DEFAULT PREVIEW ----
 st.divider()
 st.subheader("🔸 Latest 10 Records")
 try:
-    con = get_connection()
-    if con:
-        df_default = con.execute("""
-            SELECT Code, Qty, Sales_Date, Route, Description 
-            FROM ProductsWithCode 
-            ORDER BY CAST(Sales_Date AS DATE) DESC 
-            LIMIT 10
-        """).fetchdf()
-        st.dataframe(df_default, use_container_width=True)
+    df_default = con.execute("""
+        SELECT 
+            Code, 
+            Qty, 
+            Sales_Date, 
+            Route, 
+            Description 
+        FROM ProductsWithCode 
+        ORDER BY CAST(Sales_Date AS DATE) DESC 
+        LIMIT 10
+    """).fetchdf()
+    
+    # Format dates for display
+    if 'Sales_Date' in df_default.columns:
+        df_default['Sales_Date'] = pd.to_datetime(df_default['Sales_Date']).dt.date
+    
+    st.dataframe(df_default, use_container_width=True)
+    
 except Exception as e:
     st.error(f"Error loading preview: {e}")
 # Sidebar Navigation - WITH ACTUAL PAGE SWITCHING
